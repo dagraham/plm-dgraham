@@ -15,6 +15,8 @@ import pendulum
 session = PromptSession()
 
 # Do multiple input calls.
+event_directory = session.prompt('')
+
 reply = session.prompt("reply by date (yyyy-mm-dd): ")
 beginning = session.prompt("beginning date (yyyy-mm-dd): ")
 ending = session.prompt("ending date (yyyy-mm-dd): ")
@@ -32,14 +34,15 @@ WEEK_DAY = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 # roster_day = weekday[day][:3].lower()
 roster = f"./roster-{WEEK_DAY[day]}.yaml"
 # roster = f"./roster.yaml"
-if not os.path.exists(roster):
-    print("Must be executed in the directory that contains 'roster.yaml'.\nExiting")
-    sys.exit()
-
 beg_dt = parse(f"{beginning} 12am")
 # print(f"beg_dt: {beg_dt}")
 end_dt = parse(f"{ending} 11:59pm")
 # print(f"end_dt: {end_dt}")
+
+if not os.path.exists(roster):
+    print("Must be executed in the directory that contains 'roster.yaml'.\nExiting")
+    print(beg_dt, end_dt)
+    sys.exit()
 
 days = list(rrule(WEEKLY, byweekday=weekday[day], dtstart=beg_dt, until=end_dt))
 # print(f"days: {days}")
