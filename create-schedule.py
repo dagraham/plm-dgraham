@@ -13,13 +13,34 @@ import pendulum
 
 # Create prompt object.
 session = PromptSession()
+# the current directory needs to have the plm scripts and the events and rosters directories
+cwd = os.getcwd()
+scripts = ['create-event.py', 'get-dates.py', 'make-schedules.py', 'send-schedules.py']
+directories = ['events', 'rosters']
+problems = []
+for script in scripts:
+    tmp = os.path.join(cwd, script)
+    if not os.path.exists(tmp):
+        problems.append(f"Could not find {tmp}")
+for directory in directories:
+    tmp = os.path.join(cwd, directory)
+    if not os.path.exists(tmp) or not os.path.isdir(tmp):
+        problems.append(f"Either {tmp} does not exist or it is not a directory")
+if problems:
+    print(problems)
+    sys.exit()
+
+
 
 # Do multiple input calls.
 event_directory = session.prompt('')
 
-reply = session.prompt("reply by date (yyyy-mm-dd): ")
-beginning = session.prompt("beginning date (yyyy-mm-dd): ")
-ending = session.prompt("ending date (yyyy-mm-dd): ")
+reply = session.prompt("reply by date (mm/dd[/yy]): ")
+beginning = session.prompt("beginning date (mm/dd[/yy]): ")
+ending = session.prompt("ending date (mm/dd[/yy]): ")
+beg_dt = parse(f"{beginning} 12am")
+end_dt = parse(f"{ending} 11:59pm")
+
 day = int(session.prompt("integer weekday (0: Mon, 1: Tue, 2: Wed, 3: Thu, 4: Fri, 5: Sat): ", default="0"))
 numcourts = session.prompt("number of courts (0 for unlimited, else allowed number): ", default="0")
 
@@ -34,10 +55,6 @@ WEEK_DAY = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 # roster_day = weekday[day][:3].lower()
 roster = f"./roster-{WEEK_DAY[day]}.yaml"
 # roster = f"./roster.yaml"
-beg_dt = parse(f"{beginning} 12am")
-# print(f"beg_dt: {beg_dt}")
-end_dt = parse(f"{ending} 11:59pm")
-# print(f"end_dt: {end_dt}")
 
 if not os.path.exists(roster):
     print("Must be executed in the directory that contains 'roster.yaml'.\nExiting")
