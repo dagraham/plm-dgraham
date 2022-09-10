@@ -11,7 +11,7 @@ Some variant of these scripts have been used since 2014 to schedule tennis doubl
 
 The four scripts in this program automate each of the steps in this process.
 
-- `create-event.py` prompts for the name of a roster file with the names and email addresses of the players and other relevant details for the schedule and then creates a letter requesting dates to be mailed to the players and a responses file for recording their replies.
+- `create-project.py` prompts for the name of a roster file with the names and email addresses of the players and other relevant details for the schedule and then creates a letter requesting dates to be mailed to the players and a responses file for recording their replies.
 
 - `get-dates.py` sends the prepared letter to each of the players in the roster file.
 
