@@ -35,9 +35,12 @@ with open(roster, 'r') as fo:
 
 tags = set([])
 players = {}
+addresses = {}
 for player, values in roster_data.items():
+    addresses[player] = values[0]
     for tag in values[1:]:
         players.setdefault(tag, []).append(player)
+        # addresses.setdefault(tag, []).append(values[0])
         tags.add(tag)
 player_tags = [tag for tag in players.keys()]
 tag_completer = WordCompleter(player_tags)
@@ -89,6 +92,7 @@ print(f"Selected players with tag '{tag}':")
 for player in players[tag]:
     print(f"   {player}")
 
+emails = [v for k, v in addresses.items()]
 
 print(f"""
 The letter sent to players asking for their "cannot play" dates will
@@ -167,7 +171,7 @@ NUM_PLAYERS: {numplayers}
 BEGIN: {beginning_formatted}
 DAY: {day}
 END: {ending_formatted}
-DATES: {dates}
+DATES: [{dates}]
 
 # The names used as the keys in RESPONSES below were
 # obtained from the file '{roster}'.
@@ -177,7 +181,14 @@ DATES: {dates}
 
 
 lttr_tmpl = f"""\
-It's time to set the {title} schedule for these dates:
+==== Addresses ====
+{", ".join(emails)}
+
+==== Subject ====
+{title}
+
+==== Body ====
+It's time to set the schedule for these dates:
 
     {dates}
 
@@ -205,6 +216,7 @@ response_rows = []
 email_rows = []
 for player in players[tag]:
     response_rows.append(f"{player}: na\n")
+    email_rows.append(f"{player}: {addresses[player]}\n")
 
 # with open(roster, 'r') as fo:
 #     for line in fo.readlines():
@@ -229,6 +241,9 @@ if not os.path.exists(responses_file) or session.prompt(f"{responses_file} exist
         fo.write(tmpl)
         fo.write('RESPONSES:\n')
         for row in response_rows:
+            fo.write(f"    {row}")
+        fo.write('\nADDRESSES:\n')
+        for row in email_rows:
             fo.write(f"    {row}")
     print(f"Saved {responses_file}")
 else:

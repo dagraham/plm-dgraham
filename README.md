@@ -11,13 +11,16 @@ Some variant of these scripts have been used since 2014 to schedule tennis doubl
 
 The four scripts in this program automate each of the steps in this process and allow some flexibility in scheduling dates, number of players per court (doubles or singles), et cetera.
 
-- `create-project.py` prompts for the roster file *tag* which identifies the relevant players and other scheduling details and then creates a corresponding project file.
+- `create-project.py` prompts for the roster file *tag* which identifies the relevant players and other scheduling details and then creates a corresponding project directory with two files:
+	- `letter.txt` contains the email addresses of the players, the subject and the body of an email to be sent requesting their "cannot play" dates. These can be copied and pasted into your favorite email application.
+	- `responses.yaml` contains various details about the project together with a *responses* section with lines having the format
 
-- `get-dates.py` uses the contents of the project file to send a letter to each of the relevant players requesting their *cannot play* dates.
+			lastname, firstname: na
 
-- `make-schedule.py` is invoked when the responses from the players have been recorded.  This script performs steps 2 and 3 listed above to produce the group and individual schedule for the project.
+	as responses are received from players, the `na` (no answer) should be changed to refect the actual response.
 
-- `send-schedule.py` sends the group and individual schedules to each of the players in the roster file.
+- `make-schedule.py` is invoked when all the responses from the players have been recorded. This script performs steps 2 and 3 listed above to produce the schedule for the project, `schedule.txt`.
+
 
 ## Initial Setup
 
@@ -40,12 +43,9 @@ For example:
 When creating a new project, you will be prompted for the tag of the players to be included so that, in the above example, the tag *mon* would included only Steve, but the tag *tue* would include both Steve and John.
 
 
-## Schedule
+## Creating a Project
 
-- invoke `create-schedule.py`
+- cwd to `plm-home`
+- invoke `create-project.py`
 
-- Create directory for relevant file and cwd to this directory
-    e.g., ~/tennis/2022-q4
-- Create or add roster.yaml [list of "name: email address" lines]
-- Run `create-template.py` to create "respones.yaml" and "letter.txt"
 

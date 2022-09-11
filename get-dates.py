@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# FIXME: use results of create-template
+# FIXME: back burner for this since it requires gmail specific setup
 
 import smtplib
 import os

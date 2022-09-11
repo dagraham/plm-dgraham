@@ -2,11 +2,13 @@
 help = """
 Usage:
 
-    $ create-schedule.py
+    $ make-schedule.py
 
-Should be executed in a directory containing "responses.yaml"
+Should be executed in the plm root directory containing the sub-directory
+"projects" and the file "roster.yaml"
 
-The processed schedule will be saved to schedule.txt.
+The processed schedule will be saved to "schedule.txt" in the
+relevant project directory.
 """
 
 import sys
@@ -22,6 +24,8 @@ from pprint import pprint
 from collections import OrderedDict
 # from icalendar import Calendar, Event, Todo
 import uuid
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import WordCompleter
 
 leadingzero = re.compile(r'(?<!(:|\d|-))0+(?=\d)')
 
@@ -34,6 +38,9 @@ WIDTH = 70
 
 WEEK_DAY = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 
+def format_name(name):
+    lname, fname = name.split(', ')
+    return f"{fname} {lname}"
 
 def select(freq = {}, chosen=[], remaining=[]):
     """
@@ -49,7 +56,7 @@ def select(freq = {}, chosen=[], remaining=[]):
             for name in chosen:
                 tmp += freq[other][name]
             talley.append([tmp, other])
-        talley.sort()
+        # talley.sort()
         new = talley[0][1]
         for name in chosen:
             freq[name][new] += 1
@@ -60,8 +67,7 @@ def select(freq = {}, chosen=[], remaining=[]):
     return freq, chosen, remaining
 
 
-def makeSchedule(response_file):
-    # file has the form <period>_responses.yaml
+def makeSchedule(responses):
     possible = {}
     available = {}
     availabledates = {}
@@ -85,31 +91,25 @@ def makeSchedule(response_file):
     dates_notscheduled= []
     unavailable = {}
 
-    fo = open(response_file, 'r')
-    yaml_data = yaml.load(fo)
-    fo.close()
+    with open(responses, 'r') as fo:
+        yaml_responses = yaml.load(fo)
 
-    TITLE = yaml_data['TITLE']
-    DAY = yaml_data['DAY']
-    RESPONSES = yaml_data['RESPONSES']
+    TITLE = yaml_responses['TITLE']
+    DAY = yaml_responses['DAY']
+    responses = yaml_responses['RESPONSES']
+    addresses = yaml_responses['ADDRESSES']
+    DATES = yaml_responses['DATES']
 
+    RESPONSES = {format_name(k): v for k, v in responses.items()}
+    ADDRESSES = {format_name(k): v for k, v in addresses.items()}
 
-    roster = f"../roster-{WEEK_DAY[DAY]}.yaml"
+    roster = f"./roster.yaml"
     if not os.path.exists(roster):
         print(f"Must be executed in the directory that contains '{roster}'.\nExiting")
         sys.exit()
 
-    email_address = {}
-    with open(roster, 'r') as fo:
-        for line in fo.readlines():
-            name, email = line.split(':')
-            email_address[name] = email.strip()
-
     # get the roster
     NAMES = [x for x in RESPONSES.keys()]
-    for name in NAMES:
-        if name not in email_address:
-            issues.append(f"{name} is missing from 'roster.yaml'")
 
     for name in NAMES:
         # initialize all the name counters
@@ -127,13 +127,11 @@ def makeSchedule(response_file):
 
     schedule_name = f"./schedule.txt"
 
-    BEGIN = parse(f"{yaml_data['BEGIN']} 12am")
-    END = parse(f"{yaml_data['END']} 11pm")
+    # BEGIN = parse(f"{yaml_responses['BEGIN']} 12am")
+    # END = parse(f"{yaml_responses['END']} 11pm")
 
-    dates = [x.date() for x in list(rrule(WEEKLY, byweekday=DAY, dtstart=BEGIN, until=END))]
-    DATES = [(dd.strftime("%m/%d"), dd.strftime("%a %b %d")) for dd in dates]
 
-    NUM_COURTS = yaml_data['NUM_COURTS']
+    NUM_COURTS = yaml_responses['NUM_COURTS']
 
     schedule = OrderedDict({})
 
@@ -144,37 +142,46 @@ def makeSchedule(response_file):
         notcaptain[name] = 0
         substitute[name] = 0
         available[name] = 0
+        # print(f"RESPONSES[{name}]: {RESPONSES[name]}")
         if RESPONSES[name] in ['na', 'all']:
-            notavailable = [x.strip() for x in yaml_data['DATES'].split(",")]
-            continue
-
-        if RESPONSES[name] == 'sub':
-            substitutedates[name] = [x.strip() for x in yaml_data['DATES'].split(",")]
-            notavailable = []
+            availabledates[name] = []
+            substitutedates[name] = []
+            unavailable[name] = [x for x in DATES]
+        elif RESPONSES[name] in ['none'] or len(RESPONSES[name]) == 0:
+            print(f"none: {name}")
+            availabledates[name] = [x for x in DATES]
+            substitutedates[name] = []
+            unavailable[name] = []
+        elif RESPONSES[name] in ['sub']:
+            availabledates[name] = []
+            substitutedates[name] = [x for x in DATES]
+            unavailable[name] = []
         else:
+            availabledates[name] = [x for x in DATES]
             substitutedates[name] = [x[:-1] for x in RESPONSES[name] if x.endswith("*")]
-            notavailable = [x for x in RESPONSES[name] if not x.endswith("*")]
+            unavailable[name] = [x for x in RESPONSES[name] if not x.endswith("*")]
 
-        availabledates[name] = [x.strip() for x in yaml_data['DATES'].split(",")]
+            for x in substitutedates[name] + unavailable[name]:
+                if x in availabledates[name]:
+                    availabledates[name].remove(x)
+                else:
+                    issues.append(f"availabledates[{name}]: {availabledates[name]}")
+                    issues.append("{0} listed for {1} is not an available date".format(x, name))
 
-        for x in substitutedates[name] + notavailable:
-            if x in availabledates[name]:
-                availabledates[name].remove(x)
-            else:
-                issues.append("{0} listed for {1} is not an available date".format(x, name))
 
-        unavailable[name] = notavailable
+        # print(f"availabledates[{name}]: {availabledates[name]}")
+        # print(f"unavailable[{name}]: {unavailable[name]}")
+        # print(f"substitutedates[{name}]: {substitutedates[name]}")
 
-        for dd in dates:
-            dstr = leadingzero.sub('', dd.strftime("%m/%d"))
-            if dstr in availabledates[name]:
-                availablebydates.setdefault(dstr, []).append(name)
+        for dd in DATES:
+            if dd in availabledates[name]:
+                availablebydates.setdefault(dd, []).append(name)
                 available[name] += 1
-            elif dstr in substitutedates[name]:
-                substitutebydates.setdefault(dstr, []).append(name)
+            elif dd in substitutedates[name]:
+                substitutebydates.setdefault(dd, []).append(name)
                 substitute[name] += 1
 
-    num_dates = len(dates)
+    num_dates = len(DATES)
 
     freq = {}
     for name in NAMES:
@@ -188,15 +195,15 @@ def makeSchedule(response_file):
     delta = 10
 
     # choose the players for each date and court
-    dates.sort()
-    for dd in dates:
-        d = dd.strftime("%m/%d")
-        dkey = leadingzero.sub('', d)
+    # DATES.sort()
+    for dd in DATES:
+        # d = dd.strftime("%m/%d")
+        # dkey = leadingzero.sub('', d)
         courts = []
         substitutes = []
         unsched = []
-        selected = availablebydates.get(dkey, [])
-        possible = availablebydates.get(dkey, [])
+        selected = availablebydates.get(dd, [])
+        possible = availablebydates.get(dd, [])
         if NUM_COURTS:
             num_courts = min(NUM_COURTS, len(selected)//4)
         else:
@@ -234,7 +241,7 @@ def makeSchedule(response_file):
             unsched = []
 
         for name in selected:
-            playerdates.setdefault(name, []).append(d)
+            playerdates.setdefault(name, []).append(dd)
 
         if NUM_COURTS:
             num_courts = min(NUM_COURTS, len(selected)//4)
@@ -276,7 +283,7 @@ def makeSchedule(response_file):
                     c = "*"
                     cp = " (captain)"
                     captain[court[j]] += 1
-                    captaindates.setdefault(court[j], []).append(dkey)
+                    captaindates.setdefault(court[j], []).append(dd)
                 else:
                     c = cp = ""
                     notcaptain[court[j]] += 1
@@ -285,10 +292,10 @@ def makeSchedule(response_file):
                 num, pstr = court.split(':')
                 tmp = [x.strip() for x in pstr.split(',')]
                 lst.append(tmp)
-        dkey = dd.strftime("%m/%d")
+        # dkey = dd.strftime("%m/%d")
         random.shuffle(lst)
         lst.append(unsched)
-        schedule[dkey] = lst
+        schedule[dd] = lst
 
     if issues:
         # print any error messages that were generated and quit
@@ -296,7 +303,7 @@ def makeSchedule(response_file):
             print(line)
         return
 
-    DATES_SCHED = [leadingzero.sub('', dd.strftime("%m/%d")) for dd in dates_scheduled]
+    DATES_SCHED = [dd for dd in dates_scheduled]
     schdatestr = "Scheduled dates ({0}): {1}".format(len(DATES_SCHED), ", ".join([x for x in DATES_SCHED])) if DATES_SCHED else "Scheduled dates: none"
 
     output = [format_head(TITLE)]
@@ -327,17 +334,18 @@ def makeSchedule(response_file):
 3) 'Substitutes' for a date asked not to be scheduled but instead
    to be listed as possible substitutes.
 """)
-    dates.sort()
+    # DATES.sort()
 
-    for d in dates:
-        dd = d.strftime("%m/%d")
-        dkey = leadingzero.sub('', d.strftime("%m/%d"))
+    for dd in DATES:
+        # dd = d.strftime("%m/%d")
+        # dkey = leadingzero.sub('', d.strftime("%m/%d"))
+        d = parse(f"{dd} 12am")
         dtfmt = leadingzero.sub('', d.strftime("%a %b %d"))
         if not dd in schedule:
             continue
         avail = schedule[dd].pop()
 
-        subs = [f"{x}" for x in substitutebydates.get(dkey, [])]
+        subs = [f"{x}" for x in substitutebydates.get(dd, [])]
         substr = ", ".join(subs) if subs else "none"
         availstr = ", ".join(avail) if avail else "none"
 
@@ -370,10 +378,10 @@ dates on which a court is scheduled have asterisks.
         response = RESPONSES[name]
         if isinstance(response, list):
             response = ', '.join(response) if response else 'none'
-        output.append(f"{name}: {email_address.get(name, 'no email address')}")
+        output.append(f"{name}: {ADDRESSES.get(name, 'no email address')}")
 
         if name in playerdates:
-            playerdates[name].sort()
+            # playerdates[name].sort()
             player_dates = [leadingzero.sub('', x) for x in playerdates[name]]
 
             available_dates = availabledates[name]
@@ -383,7 +391,7 @@ dates on which a court is scheduled have asterisks.
                     available_dates[indx] = f"{date}*"
 
             if name in captaindates:
-                captaindates[name].sort()
+                # captaindates[name].sort()
                 cptndates = [x for x in captaindates[name]]
                 for date in cptndates:
                     indx = player_dates.index(date)
@@ -436,7 +444,7 @@ dates on which a court is scheduled have asterisks.
     unsel_hsh = {}
     if unsel:
         unsel_lst = []
-        unsel.sort()
+        # unsel.sort()
         for (n, x) in unsel:
             unsel_hsh.setdefault(str(n), []).append(str(x))
         for n in unsel_hsh:
@@ -454,7 +462,7 @@ dates on which a court is scheduled have asterisks.
     cap_hsh = {}
     if cap:
         cap_lst = []
-        cap.sort()
+        # cap.sort()
         for (n, x) in cap:
             cap_hsh.setdefault(str(n), []).append(str(x))
         for n in cap_hsh:
@@ -508,7 +516,34 @@ def wrap_format(s):
 
 
 if __name__ == "__main__":
-    if os.path.isfile("./responses.yaml"):
-        makeSchedule("./responses.yaml")
-    else:
+    session = PromptSession()
+    problems = []
+    cwd = os.getcwd()
+    roster = os.path.join(cwd, 'roster.yaml')
+    if not os.path.exists(roster):
+        problems.append(f"Could not find {roster}")
+    projects = os.path.join(cwd, 'projects')
+    if not os.path.exists(projects) or not os.path.isdir(projects):
+        problems.append(f"Either {projects} does not exist or it is not a directory")
+    if problems:
+        print(problems)
+        sys.exit()
+
+    project_names = []
+    for name in os.listdir(projects):
+        if os.path.isdir(os.path.join(projects, name)):
+            project_names.append(name)
+    project_completer = WordCompleter(project_names)
+
+    project_name = session.prompt("project name: ", completer=project_completer)
+    project = os.path.join(projects, project_name)
+    if not os.path.exists(project):
+        print(f"could not find: '{project}'")
+        sys.exit()
+
+    responses = os.path.join(project, 'responses.yaml')
+    if not os.path.isfile(responses):
+        print(f"could not find '{responses}'")
         print(help)
+    else:
+        makeSchedule(responses)
