@@ -9,28 +9,36 @@ Some variant of these scripts have been used since 2014 to schedule tennis doubl
 3. From each group, randomly select a 'captain' taking account of previous selections.
 4. Email both group and individual schedules to each player.
 
-The four scripts in this program automate each of the steps in this process.
+The four scripts in this program automate each of the steps in this process and allow some flexibility in scheduling dates, number of players per court (doubles or singles), et cetera.
 
-- `create-project.py` prompts for the name of a roster file with the names and email addresses of the players and other relevant details for the schedule and then creates a letter requesting dates to be mailed to the players and a responses file for recording their replies.
+- `create-project.py` prompts for the roster file *tag* which identifies the relevant players and other scheduling details and then creates a corresponding project file.
 
-- `get-dates.py` sends the prepared letter to each of the players in the roster file.
+- `get-dates.py` uses the contents of the project file to send a letter to each of the relevant players requesting their *cannot play* dates.
 
-- `make-schedules.py` is invoked when the responses from the players have been received to perform steps 2 and 3 above and produce the group and individual schedules.
+- `make-schedule.py` is invoked when the responses from the players have been recorded.  This script performs steps 2 and 3 listed above to produce the group and individual schedule for the project.
 
-- `send-schedules.py` sends the group and individual schedules to each of the players in the roster file.
+- `send-schedule.py` sends the group and individual schedules to each of the players in the roster file.
 
-## initial setup
+## Initial Setup
 
-- create a directory to use for *plm* and, within it, sub directories called rosters and schedules
+- create a directory to use for *plm* and, within it, a sub-directory called `projects` and a file called `roster.yaml`
 
         ~/plm-home
-            rosters/
-            schedules/
+            projects/
+            roster.yaml
 
-- create a subdirectory called `rosters` in your scheduling directory
-- create a roster file in rosters for each event you will be scheduling with the names and email address of the players who will potentially be participating in the event
-    e.g., ~/scheduling/rosters/tuesday.yaml
-    each line in this file should have the format `firstname lastname: emailaddress`
+Each line in the roster file should have the format
+
+    lastname, firstname: [emailaddress,  tag1, tag2, ... ]
+
+For example:
+
+    Doaks, Steve: [stvdoaks321@gmail.com, mon, tue]
+    Smith, John: [jsmith123@gmail.com, tue, fri]
+    ...
+
+When creating a new project, you will be prompted for the tag of the players to be included so that, in the above example, the tag *mon* would included only Steve, but the tag *tue* would include both Steve and John.
+
 
 ## Schedule
 

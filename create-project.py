@@ -7,6 +7,9 @@ from dateutil.rrule import *
 from dateutil.parser import *
 from datetime import *
 from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import WordCompleter
+from ruamel.yaml import YAML
+yaml = YAML(typ='safe', pure=True)
 import os
 import sys
 import pendulum
@@ -15,73 +18,140 @@ import pendulum
 session = PromptSession()
 # the current directory needs to have the plm scripts and the events and rosters directories
 cwd = os.getcwd()
-scripts = ['create-event.py', 'get-dates.py', 'make-schedules.py', 'send-schedules.py']
-directories = ['events', 'rosters']
 problems = []
-for script in scripts:
-    tmp = os.path.join(cwd, script)
-    if not os.path.exists(tmp):
-        problems.append(f"Could not find {tmp}")
-for directory in directories:
-    tmp = os.path.join(cwd, directory)
-    if not os.path.exists(tmp) or not os.path.isdir(tmp):
-        problems.append(f"Either {tmp} does not exist or it is not a directory")
+roster = os.path.join(cwd, 'roster.yaml')
+if not os.path.exists(roster):
+    problems.append(f"Could not find {roster}")
+projects = os.path.join(cwd, 'projects')
+if not os.path.exists(projects) or not os.path.isdir(projects):
+    problems.append(f"Either {projects} does not exist or it is not a directory")
 if problems:
     print(problems)
     sys.exit()
 
 
+with open(roster, 'r') as fo:
+    roster_data = yaml.load(fo)
+
+tags = set([])
+players = {}
+for player, values in roster_data.items():
+    for tag in values[1:]:
+        players.setdefault(tag, []).append(player)
+        tags.add(tag)
+player_tags = [tag for tag in players.keys()]
+tag_completer = WordCompleter(player_tags)
 
 # Do multiple input calls.
-event_directory = session.prompt('')
+# event_directory = session.prompt('')
 
-reply = session.prompt("reply by date (mm/dd[/yy]): ")
-beginning = session.prompt("beginning date (mm/dd[/yy]): ")
-ending = session.prompt("ending date (mm/dd[/yy]): ")
-beg_dt = parse(f"{beginning} 12am")
-end_dt = parse(f"{ending} 11:59pm")
+# get the project file name
 
-day = int(session.prompt("integer weekday (0: Mon, 1: Tue, 2: Wed, 3: Thu, 4: Fri, 5: Sat): ", default="0"))
+print(f"""
+A name is required for the project. It will be used to create a sub-directory
+of the projects directory: {projects}.
+A short name that will sort in a useful way is suggested, e.g., `2022-4Q-TU`
+for scheduling Tuesdays in the 4th quarter of 2022.\
+""")
+project_name = session.prompt("project name: ")
+project = os.path.join(projects, project_name)
+if not os.path.exists(project):
+    os.mkdir(project)
+    print(f"created directory: {project}")
+else:
+    print(f"using existing directory: {project}")
+
+
+responses_file = os.path.join(project, 'responses.yaml')
+letter_file = os.path.join(project, 'letter.txt')
+
+print(f"""
+A user friendly title is needed to use as the subject of emails sent
+to players initially requesing their "cannot play" dates and subsequently
+containing the schedules, e.g., `Tuesday Tennis`.""")
+
+title = session.prompt("project title: ")
+
+print(f"""
+The players for this project will be those that have the tag you specify
+from {roster}.
+These tags are currently available: [{', '.join(player_tags)}].\
+""")
+tag = session.prompt(f"player tag: ", completer=tag_completer, complete_while_typing=True)
+while tag not in player_tags:
+    print(f"'{tag}' is not in {', '.join(player_tags)}")
+    print(f"Available player tags: {', '.join(player_tags)}")
+    tag = session.prompt(f"player tag: ", completer=tag_completer, complete_while_typing=True)
+
+
+
+print(f"Selected players with tag '{tag}':")
+for player in players[tag]:
+    print(f"   {player}")
+
+
+print(f"""
+The letter sent to players asking for their "cannot play" dates will
+request a reply by 6pm on the "reply by date" that you specify next.\
+        """)
+reply = session.prompt("reply by date: ", completer=None)
+rep_dt = parse(f"{reply} 6pm")
+print(f"reply by: {rep_dt}")
+
+
+
+print("""
+If play repeats weekly on the same weekday, playing dates can given by
+specifying the weekday and the beginning and ending dates. Otherwise,
+dates can be specified individually.
+        """)
+repeat = session.prompt("Repeat weekly: ", default='yes')
+if repeat == 'yes':
+    day = int(session.prompt("The integer weekday (0: Mon, 1: Tue, 2: Wed, 3: Thu, 4: Fri, 5: Sat): "))
+    # rrule objects for generating days
+    weekday = {0: MO, 1: TU, 2: WE, 3: TH, 4: FR, 5: SA}
+    # Long weekday names for TITLE
+    weekdays = {0: 'Monday', 1: 'Tuesday', 2: 'Wednesday', 3: 'Thursday', 4: 'Friday', 5: 'Saturday'}
+    WEEK_DAY = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+    print(f"""
+Play will be scheduled for {weekdays[day]}s falling on or after the
+"beginning date" you specify next.""")
+    beginning = session.prompt("beginning date: ")
+    beg_dt = parse(f"{beginning} 12am")
+    # print(f"beginning: {beg_dt}")
+    print(f"""
+Play will also be limited to {weekdays[day]}s falling on or before the
+"ending date" you specify next.""")
+    ending = session.prompt("ending date: ")
+    end_dt = parse(f"{ending} 11:59pm")
+    # print(f"ending: {end_dt}")
+    days = list(rrule(WEEKLY, byweekday=weekday[day], dtstart=beg_dt, until=end_dt))
+else:
+    print("""
+Playing dates separated by commas using year/month/day format. The current
+year is assumed if omitted.
+""")
+    dates = session.prompt("Dates: ")
+    days = [parse(f"{x} 12am") for x in dates.split(',')]
+
 numcourts = session.prompt("number of courts (0 for unlimited, else allowed number): ", default="0")
+numplayers = session.prompt("number of players (2 for singles, 4 for doubles): ", default="4")
 
-# rrule objects for generating days
-weekday = {0: MO, 1: TU, 2: WE, 3: TH, 4: FR, 5: SA}
-# Long weekday names for TITLE
-weekdays = {0: 'Monday', 1: 'Tuesday', 2: 'Wednesday', 3: 'Thursday', 4: 'Friday', 5: 'Saturday'}
-
-
-WEEK_DAY = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
-
-# roster_day = weekday[day][:3].lower()
-roster = f"./roster-{WEEK_DAY[day]}.yaml"
-# roster = f"./roster.yaml"
-
-if not os.path.exists(roster):
-    print("Must be executed in the directory that contains 'roster.yaml'.\nExiting")
-    print(beg_dt, end_dt)
-    sys.exit()
-
-days = list(rrule(WEEKLY, byweekday=weekday[day], dtstart=beg_dt, until=end_dt))
-# print(f"days: {days}")
 
 beginning_datetime = pendulum.instance(days[0])
 # print(f"beginning_datetime: {beginning_datetime}")
-beginning_formatted = beginning_datetime.format('YYYY-MM-DD')
+beginning_formatted = beginning_datetime.format('YY-MM-DD')
 ending_datetime = pendulum.instance(days[-1])
 # print(f"ending_datetime: {ending_datetime}")
-ending_formatted = ending_datetime.format('YYYY-MM-DD')
+ending_formatted = ending_datetime.format('YY-MM-DD')
 
 # title = f"{weekdays[day]} Tennis for {beginning_formatted} through {ending_formatted}"
-title = f"{weekdays[day]} Tennis"
-responses_file = f"./{beginning_formatted}_{ending_formatted}_{WEEK_DAY[day]}/responses.yaml"
-letter_file = f"./{beginning_formatted}_{ending_formatted}_{WEEK_DAY[day]}/letter.txt"
 
 # dates will be in m/d format, e.g., 12/20, 12/27, 1/3 so only works for less than a year
 
 dates = ", ".join([f"{x.month}/{x.day}" for x in days])
 DATES = [x.strip() for x in dates.split(",")]
 
-# rep_dt = (pendulum.instance(days[0]) - pendulum.duration(weeks=3, days=day))
 rep_dt = pendulum.instance(parse(f"{reply} 6pm"))
 rep_date = rep_dt.format("hA on dddd, MMMM D")
 rep_DATE = rep_dt.format("hA on dddd, MMMM D, YYYY")
@@ -90,17 +160,18 @@ eg_day = pendulum.instance(days[1])
 eg_yes = eg_day.format("M/D")
 eg_no = eg_day.format("MMMM D")
 
-tmpl = f"""# created by create-template.py
+tmpl = f"""# created by create-project.py
 TITLE: {title}
 NUM_COURTS: {numcourts}
+NUM_PLAYERS: {numplayers}
 BEGIN: {beginning_formatted}
 DAY: {day}
 END: {ending_formatted}
 DATES: {dates}
 
 # The names used as the keys in RESPONSES below were
-# obtained from the file '{roster}'. Responses are due
-# by {rep_DATE}.
+# obtained from the file '{roster}'.
+# Responses are due by {rep_DATE}.
 
 """
 
@@ -132,14 +203,17 @@ Thanks,
 
 response_rows = []
 email_rows = []
-with open(roster, 'r') as fo:
-    for line in fo.readlines():
-        name, email = line.split(':')
-        response_rows.append(f"{name}: na\n")
-        # email_rows.append(f"{name}: {email}")
+for player in players[tag]:
+    response_rows.append(f"{player}: na\n")
 
-print(f"letter_file: {letter_file}")
-print(f"responses_file: {responses_file}")
+# with open(roster, 'r') as fo:
+#     for line in fo.readlines():
+#         name, email = line.split(':')
+#         response_rows.append(f"{name}: na\n")
+#         # email_rows.append(f"{name}: {email}")
+
+# print(f"letter_file: {letter_file}")
+# print(f"responses_file: {responses_file}")
 
 if not os.path.exists(letter_file) or session.prompt(f"{letter_file} exists. Overwrite: ", default="yes").lower() == "yes":
     os.makedirs(os.path.dirname(letter_file), exist_ok=True)
