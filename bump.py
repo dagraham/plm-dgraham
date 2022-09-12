@@ -5,19 +5,23 @@ import sys
 import logging
 import logging.config
 logger = logging.getLogger()
+import subprocess # for check_output
 
 from plm.__version__ import version
-import plm.view as view
-# from plm.view import check_output
-import plm.options as options
 
+def check_output(cmd):
+    if not cmd:
+        return
+    res = ""
+    try:
+        res = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True, universal_newlines=True, encoding='UTF-8')
+        return True, res
+    except subprocess.CalledProcessError as e:
+        logger.warning(f"Error running {cmd}\n'{e.output}'")
+        lines = e.output.strip().split('\n')
+        msg = lines[-1]
+        return False, msg
 
-setup_logging = options.setup_logging
-setup_logging(1, '~/plm-dgraham')
-view.logger = logger
-
-
-check_output = view.check_output
 ok, gb = check_output("git branch")
 print('branch:')
 print(gb)
