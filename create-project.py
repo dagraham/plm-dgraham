@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-# for court scheduling on a given weekday from a beginning date through an ending date that falls within 12 months of the beginning date
-# Should be executed in the directory that contains roster.yaml - all files will be created in a subdirectory.
-
 from dateutil.rrule import *
 from dateutil.parser import *
 from datetime import *
@@ -16,7 +13,6 @@ import pendulum
 
 # Create prompt object.
 session = PromptSession()
-# the current directory needs to have the plm scripts and the events and rosters directories
 cwd = os.getcwd()
 problems = []
 roster = os.path.join(cwd, 'roster.yaml')
@@ -40,15 +36,10 @@ for player, values in roster_data.items():
     addresses[player] = values[0]
     for tag in values[1:]:
         players.setdefault(tag, []).append(player)
-        # addresses.setdefault(tag, []).append(values[0])
         tags.add(tag)
 player_tags = [tag for tag in players.keys()]
 tag_completer = WordCompleter(player_tags)
 
-# Do multiple input calls.
-# event_directory = session.prompt('')
-
-# get the project file name
 
 print(f"""
 A name is required for the project. It will be used to create a sub-directory
@@ -218,16 +209,7 @@ for player in players[tag]:
     response_rows.append(f"{player}: na\n")
     email_rows.append(f"{player}: {addresses[player]}\n")
 
-# with open(roster, 'r') as fo:
-#     for line in fo.readlines():
-#         name, email = line.split(':')
-#         response_rows.append(f"{name}: na\n")
-#         # email_rows.append(f"{name}: {email}")
-
-# print(f"letter_file: {letter_file}")
-# print(f"responses_file: {responses_file}")
-
-if not os.path.exists(letter_file) or session.prompt(f"{letter_file} exists. Overwrite: ", default="yes").lower() == "yes":
+if not os.path.exists(letter_file) or session.prompt(f"'./{os.path.relpath(letter_file, cwd)}' exists. Overwrite: ", default="yes").lower() == "yes":
     os.makedirs(os.path.dirname(letter_file), exist_ok=True)
     with open(letter_file, 'w') as fo:
         fo.write(lttr_tmpl)
@@ -235,7 +217,7 @@ if not os.path.exists(letter_file) or session.prompt(f"{letter_file} exists. Ove
 else:
     print("Overwrite cancelled")
 
-if not os.path.exists(responses_file) or session.prompt(f"{responses_file} exists. Overwrite: ", default="yes").lower() == "yes":
+if not os.path.exists(responses_file) or session.prompt(f"'./{os.path.relpath(responses_file, cwd)}' exists. Overwrite: ", default="yes").lower() == "yes":
     os.makedirs(os.path.dirname(responses_file), exist_ok=True)
     with open(responses_file, 'w') as fo:
         fo.write(tmpl)

@@ -67,7 +67,7 @@ def select(freq = {}, chosen=[], remaining=[]):
     return freq, chosen, remaining
 
 
-def makeSchedule(responses):
+def makeSchedule(project):
     possible = {}
     available = {}
     availabledates = {}
@@ -90,6 +90,8 @@ def makeSchedule(responses):
     dates_scheduled = []
     dates_notscheduled= []
     unavailable = {}
+    responses = os.path.join(project, 'responses.yaml')
+    schedule_name = os.path.join(project, 'schedule.txt')
 
     with open(responses, 'r') as fo:
         yaml_responses = yaml.load(fo)
@@ -125,15 +127,8 @@ def makeSchedule(responses):
     if notresponded:
         print("Not yet responded:\n  {0}\n".format("\n  ".join(notresponded)))
 
-    schedule_name = f"./schedule.txt"
-
-    # BEGIN = parse(f"{yaml_responses['BEGIN']} 12am")
-    # END = parse(f"{yaml_responses['END']} 11pm")
-
 
     NUM_COURTS = yaml_responses['NUM_COURTS']
-
-    schedule = OrderedDict({})
 
     # get available players for each date
     for name in NAMES:
@@ -168,11 +163,6 @@ def makeSchedule(responses):
                     issues.append(f"availabledates[{name}]: {availabledates[name]}")
                     issues.append("{0} listed for {1} is not an available date".format(x, name))
 
-
-        # print(f"availabledates[{name}]: {availabledates[name]}")
-        # print(f"unavailable[{name}]: {unavailable[name]}")
-        # print(f"substitutedates[{name}]: {substitutedates[name]}")
-
         for dd in DATES:
             if dd in availabledates[name]:
                 availablebydates.setdefault(dd, []).append(name)
@@ -195,10 +185,7 @@ def makeSchedule(responses):
     delta = 10
 
     # choose the players for each date and court
-    # DATES.sort()
     for dd in DATES:
-        # d = dd.strftime("%m/%d")
-        # dkey = leadingzero.sub('', d)
         courts = []
         substitutes = []
         unsched = []
@@ -292,7 +279,6 @@ def makeSchedule(responses):
                 num, pstr = court.split(':')
                 tmp = [x.strip() for x in pstr.split(',')]
                 lst.append(tmp)
-        # dkey = dd.strftime("%m/%d")
         random.shuffle(lst)
         lst.append(unsched)
         schedule[dd] = lst
@@ -334,7 +320,6 @@ def makeSchedule(responses):
 3) 'Substitutes' for a date asked not to be scheduled but instead
    to be listed as possible substitutes.
 """)
-    # DATES.sort()
 
     for dd in DATES:
         # dd = d.strftime("%m/%d")
@@ -382,7 +367,7 @@ dates on which a court is scheduled have asterisks.
 
         if name in playerdates:
             # playerdates[name].sort()
-            player_dates = [leadingzero.sub('', x) for x in playerdates[name]]
+            player_dates = [x for x in playerdates[name]]
 
             available_dates = availabledates[name]
             for date in available_dates:
@@ -444,7 +429,6 @@ dates on which a court is scheduled have asterisks.
     unsel_hsh = {}
     if unsel:
         unsel_lst = []
-        # unsel.sort()
         for (n, x) in unsel:
             unsel_hsh.setdefault(str(n), []).append(str(x))
         for n in unsel_hsh:
@@ -462,7 +446,6 @@ dates on which a court is scheduled have asterisks.
     cap_hsh = {}
     if cap:
         cap_lst = []
-        # cap.sort()
         for (n, x) in cap:
             cap_hsh.setdefault(str(n), []).append(str(x))
         for n in cap_hsh:
@@ -487,9 +470,11 @@ dates on which a court is scheduled have asterisks.
   in which i) a player was available 7 times when other players were
   scheduled and ii) the player was unscheduled 2 of those 7 times.
 """)
-    with open(schedule_name, 'w') as fo:
-        fo.write("\n".join(output))
-        print(f"updated {schedule_name}")
+
+    if not os.path.exists(schedule_name) or session.prompt(f"'{os.path.relpath(schedule_name, home)}' exists. Overwrite: ", default="yes").lower() == "yes":
+        with open(schedule_name, 'w') as fo:
+            fo.write("\n".join(output))
+            print(f"updated {schedule_name}")
 
 
 def print_head(s):
@@ -519,6 +504,7 @@ if __name__ == "__main__":
     session = PromptSession()
     problems = []
     cwd = os.getcwd()
+    home = os.path.expanduser('~')
     roster = os.path.join(cwd, 'roster.yaml')
     if not os.path.exists(roster):
         problems.append(f"Could not find {roster}")
@@ -546,4 +532,4 @@ if __name__ == "__main__":
         print(f"could not find '{responses}'")
         print(help)
     else:
-        makeSchedule(responses)
+        makeSchedule(project)
