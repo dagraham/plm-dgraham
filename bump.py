@@ -6,14 +6,14 @@ import logging
 import logging.config
 logger = logging.getLogger()
 
-from etm.__version__ import version
-import etm.view as view
-# from etm.view import check_output
-import etm.options as options
+from plm.__version__ import version
+import plm.view as view
+# from plm.view import check_output
+import plm.options as options
 
 
 setup_logging = options.setup_logging
-setup_logging(1, '~/etm-dgraham')
+setup_logging(1, '~/plm-dgraham')
 view.logger = logger
 
 
@@ -32,7 +32,7 @@ if gs:
 
 # PEP 440 extensions
 # possible_extensions = ['a', 'b', 'rc', '.post', '.dev']
-# For etm only the following will be used
+# For plm only the following will be used
 possible_extensions = ['a', 'b', 'rc']
 
 pre = post = version
@@ -76,7 +76,7 @@ if ext and ext in extension_options:
     opts.append(f"  j: {b_major}")
 
 import os
-version_file = os.path.join(os.getcwd(), 'etm', '__version__.py')
+version_file = os.path.join(os.getcwd(), 'plm', '__version__.py')
 
 print("\n".join(opts))
 res = input(f"Which new version? ")
