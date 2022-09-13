@@ -191,13 +191,18 @@ If you want to be listed as a possible substitute for any of these dates, then a
 
     {DATES[0]}, {DATES[2]}*, {DATES[3]}
 
-Alternative shortcut responses:
+Short responses:
 
-    all: you cannot play on any of the dates - equivalent to a list with all of the dates
+    none: there are no dates on which you cannot play - equivalent to a
+          list without any dates
 
-    sub: you want to be listed as a possible substitute on all of the dates - equivalent to a list of all of the dates with asterisks appended to each
+    all: you cannot play on any of the dates - equivalent to a list with
+         all of the dates
 
-    none: there are no dates on which you cannot play - equivalent to a list without any dates
+    sub: you want to be listed as a possible substitute on all of the
+         dates - equivalent to a list of all of the dates with asterisks
+         appended to each
+
 
 Thanks,
 """
@@ -206,7 +211,7 @@ Thanks,
 response_rows = []
 email_rows = []
 for player in players[tag]:
-    response_rows.append(f"{player}: na\n")
+    response_rows.append(f"{player}: nr\n")
     email_rows.append(f"{player}: {addresses[player]}\n")
 
 if not os.path.exists(letter_file) or session.prompt(f"'./{os.path.relpath(letter_file, cwd)}' exists. Overwrite: ", default="yes").lower() == "yes":

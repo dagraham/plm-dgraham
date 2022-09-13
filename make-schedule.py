@@ -121,7 +121,7 @@ def makeSchedule(project):
         unselected[name] = 0
         opportunities[name] = 0
         available[name] = 0
-        if RESPONSES[name] == 'na':
+        if RESPONSES[name] in ['nr', 'na']:
             notresponded.append(name)
 
     if notresponded:

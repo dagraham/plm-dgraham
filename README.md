@@ -15,11 +15,13 @@ The two scripts in this program automate each of the steps in this process and a
 	- `letter.txt` contains the email addresses of the players, the subject and the body of an email to be sent requesting their "cannot play" dates. These can be copied and pasted into your favorite email application.
 	- `responses.yaml` contains various details about the project together with a *responses* section with lines having the format
 
-			lastname, firstname: na
+			lastname, firstname: nr
 
-	as responses are received from players, the `na` (no answer) should be changed to refect the actual response.
+	as responses are received from players, the `nr` (no response) should be changed to refect the actual response.
 
 - `make-schedule.py` is invoked when all the responses from the players have been recorded. This script performs steps 2 and 3 listed above to produce the schedule for the project, `schedule.txt`.
+
+Both scripts can be run more than once but will warn if file is to be overwritten and ask permission to do so.
 
 
 ## Initial Setup
@@ -77,8 +79,7 @@ The two scripts in this program automate each of the steps in this process and a
 
     > It's time to set the schedule for these dates:
 
-                10/4, 10/11, 10/18, 10/25, 11/1, 11/8, 11/15,
-                11/22, 11/29, 12/6, 12/13, 12/20, 12/27
+    >> 10/4, 10/11, 10/18, 10/25, 11/1, 11/8, 11/15, 11/22, 11/29, 12/6, 12/13, 12/20, 12/27
 
     > Please make a note on your calendars to let me have your cannot play dates from this list no later than 6PM on Saturday, September 17. I will suppose that anyone who does not reply by this date cannot play on any of the scheduled dates.
     >
@@ -86,7 +87,7 @@ The two scripts in this program automate each of the steps in this process and a
     >
     > If you want to be listed as a possible substitute for any of these dates, then append asterisks to the relevant dates. If, for example, you cannot play on 10/4 and 10/25 but might be able to play on 10/18 and thus want to be listed as a substitute for that date, then your response should be:
 
-                10/4, 10/18*, 10/25
+    >> 10/4, 10/18*, 10/25
 
     > Alternative shortcut responses:
 
@@ -100,19 +101,19 @@ The two scripts in this program automate each of the steps in this process and a
 
     And this is an illustration of the relevant part of `reponses.yaml`:
 
-            RESPONSES:
-                Doaks, Steve: na
-                Smith, John: na
-                ...
+	> RESPONSES:
+	>>	Doaks, Steve: nr
+	>>	Smith, John: nr
+	>>	...
 
-    The `na` stands for "no answer" (yet).
+    The `nr` stands for "no response" (yet).
 
     As the responses from the players are received, they can be entered into `responses.yaml`.
 
-            RESPONSES:
-                Doaks, Steve: none
-                Smith, John: [10/4, 10/18*, 10/25]
-                ...
+		RESPONSES:
+			Doaks, Steve: none
+			Smith, John: [10/4, 10/18*, 10/25]
+			...
 
     Notice the square brackets around the list of Smith's cannot play dates.
 
