@@ -138,12 +138,11 @@ def makeSchedule(project):
         substitute[name] = 0
         available[name] = 0
         # print(f"RESPONSES[{name}]: {RESPONSES[name]}")
-        if RESPONSES[name] in ['na', 'all']:
+        if RESPONSES[name] in ['na', 'nr', 'all']:
             availabledates[name] = []
             substitutedates[name] = []
             unavailable[name] = [x for x in DATES]
         elif RESPONSES[name] in ['none'] or len(RESPONSES[name]) == 0:
-            print(f"none: {name}")
             availabledates[name] = [x for x in DATES]
             substitutedates[name] = []
             unavailable[name] = []
@@ -392,7 +391,7 @@ dates on which a court is scheduled have asterisks.
             if RESPONSES[name] == 'all':
                 ua = "all"
                 un = num_dates
-            elif RESPONSES[name] == 'na':
+            elif RESPONSES[name] in ['na', 'nr']:
                 ua = "no answer"
                 un = num_dates
             elif RESPONSES[name] == 'sub':
