@@ -132,8 +132,7 @@ setup(
     # py_modules=['mypackage'],
     entry_points={
         'console_scripts': [
-            'plm_project=create-project',
-            'plm_schedule=make-schedule',
+            'plm=plm.__main__:main',
         ],
     },
     install_requires=REQUIRED,
