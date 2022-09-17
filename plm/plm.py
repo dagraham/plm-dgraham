@@ -8,6 +8,7 @@ from prompt_toolkit import prompt
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.completion import NestedCompleter
+from collections import OrderedDict
 
 
 from ruamel.yaml import YAML
@@ -15,6 +16,8 @@ yaml = YAML(typ='safe', pure=True)
 import os
 import sys
 import re
+import random
+import textwrap
 import pendulum
 
 # for check_output
@@ -81,8 +84,12 @@ def edit_project():
     print(f"""
 Press <space> to show completions for the project name and then again
 for the file name.""")
-    path_to_edit = prompt("project and file to edit: ", completer=completer)
-    comp = [x.strip() for x in path_to_edit.split(' ') if x.strip()]
+    comp = []
+    while len(comp) < 2:
+        path_to_edit = prompt("project and file to edit: ", completer=completer)
+        comp = [x.strip() for x in path_to_edit.split(' ') if x.strip()]
+        if len(comp) < 2:
+            print(f"You selected {comp} - both a project and file need to be selected")
     rel_path = os.path.join(comp[0], comp[1])
     file_path = os.path.join(plm_projects, rel_path)
 
@@ -429,7 +436,7 @@ def select(freq = {}, chosen=[], remaining=[]):
     return freq, chosen, remaining
 
 
-def makeSchedule(project):
+def make_schedule():
     possible = {}
     available = {}
     availabledates = {}
@@ -452,10 +459,30 @@ def makeSchedule(project):
     dates_scheduled = []
     dates_notscheduled= []
     unavailable = {}
-    responses = os.path.join(project, 'responses.yaml')
-    schedule_name = os.path.join(project, 'schedule.txt')
+    project_hsh = {}
+    session = PromptSession()
+    possible = [x for x in os.listdir(plm_projects) if os.path.isdir(os.path.join(plm_projects, x))]
 
-    with open(responses, 'r') as fo:
+    projects = []
+    for proj in possible:
+        files = os.listdir(os.path.join(plm_projects, proj))
+        if 'letter.txt' in files and 'responses.yaml' in files and 'schedule.txt' in files:
+            projects.append(proj)
+
+    project_completer = WordCompleter(projects)
+    print(f"""
+Press <space> to show completions for the project name.""")
+    proj_to_schedule = prompt("Create schedule for project: ", completer=project_completer).strip()
+    proj_path = os.path.join(plm_projects, proj_to_schedule)
+
+    responses_name = os.path.join(proj_path, 'responses.yaml')
+    schedule_name = os.path.join(proj_path, 'schedule.txt')
+
+    if os.path.isfile(responses_name):
+        print(f"{responses_name} is a file")
+    else:
+        print(f"{responses_name} is not a file")
+    with open(responses_name, 'r') as fo:
         yaml_responses = yaml.load(fo)
 
     TITLE = yaml_responses['TITLE']
@@ -754,7 +781,7 @@ dates on which a court is scheduled have asterisks.
                 ua = "all"
                 un = num_dates
             elif RESPONSES[name] in ['na', 'nr']:
-                ua = "no answer"
+                ua = "no reply"
                 un = num_dates
             elif RESPONSES[name] == 'sub':
                 ua = "substitute only"
@@ -832,7 +859,7 @@ dates on which a court is scheduled have asterisks.
   scheduled and ii) the player was unscheduled 2 of those 7 times.
 """)
 
-    if not os.path.exists(schedule_name) or session.prompt(f"'{os.path.relpath(schedule_name, home)}' exists. Overwrite: ", default="yes").lower() == "yes":
+    if not os.path.exists(schedule_name) or session.prompt(f"'{schedule_name}' exists. Overwrite: ", default="yes").lower() == "yes":
         with open(schedule_name, 'w') as fo:
             fo.write("\n".join(output))
             print(f"updated {schedule_name}")
