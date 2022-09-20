@@ -9,6 +9,7 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.completion import NestedCompleter
 from collections import OrderedDict
+import pyperclip
 
 
 from ruamel.yaml import YAML
@@ -37,6 +38,9 @@ COLUMNS, ROWS  = shutil.get_terminal_size()
 
 # WEEK_DAY = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 
+def copy_to_clipboard(text):
+    pyperclip.copy(text)
+    print(f"copied {text} to system clipboard")
 
 def openWithDefault(path):
     parts = [x.strip() for x in path.split(" ")]
@@ -100,22 +104,53 @@ for the file name.""")
 
 def main():
 
+    """
+    project logic
+    all data in <project>.yaml including responses, addresses, request and schedule
+    plm
+        projects
+            2022-4Q-TU.yaml
+
+
+    """
+
+    with open(plm_active, 'r') as fo:
+        active_data = yaml.load(fo)
+    active_project = active_data['active_project']
+    print(f"Active project: {active_project}")
+
     parser = argparse.ArgumentParser(
             description=f"Player Lineup Manager [v {plm_version}]",
             prog='plm')
 
-    parser.add_argument("-p", "--project",
-            help="create a new project", action="store_true")
-
-    parser.add_argument("-s", "--schedule",
-            help="make the schedule for an existing project", action="store_true")
-
     parser.add_argument("-r", "--roster",
-            help="open 'roster.yaml' using the default text editor", action="store_true")
+            help="Open 'roster.yaml' using the default text editor to enter player names and email addresses (1)", action="store_true")
+
+    # FIXME: allow selection of existing project
+    parser.add_argument("-p", "--project",
+            help="Create a project (2)", action="store_true")
+
+    parser.add_argument("-", "--project",
+            help="Create a project (2)", action="store_true")
+
+    # FIXME:
+    parser.add_argument("-a", "--addresses",
+            help="Copy project email addresses to the system clipboard (3)", action="store_true")
+
+    # FIXME:
+    parser.add_argument("-b", "--body",
+            help="Copy project email body requesting cannot play dates to the system clipboard (4)", action="store_true")
+
+    # FIXME:
+    parser.add_argument("-e", "--enter",
+            help="Open the project 'responses.yaml' file using the default text editor to enter player cannot play dates (5)", action="store_true")
+
+    # FIXME:
+    parser.add_argument("-s", "--schedule",
+            help="Process player responses to create the project schedule and copy it to the system clipboard (6)", action="store_true")
 
     parser.add_argument("-o", "--open",
             help="Choose a project and file to open using the default text editor", action="store_true")
-
 
     # parser.add_argument("")
 
@@ -150,17 +185,6 @@ def main():
         edit_project()
         return
 
-    if args.add:
-        tmp, *child = args.add.split(" ")
-        idstr = tmp.split('-')[0]
-        if child:
-            child = '_'.join(child)
-        Data.addID(idstr, child)
-
-    if args.edit:
-        ok, res = Data.editID(args.edit)
-        if not ok:
-            print(res)
 
 def check_update():
     url = "https://raw.githubusercontent.com/dagraham/plm-dgraham/master/plm/__version__.py"
@@ -183,7 +207,6 @@ def check_update():
     return res
 
 
-
 def create_project():
     # Create prompt object.
     session = PromptSession()
@@ -198,6 +221,8 @@ def create_project():
 
     with open(plm_roster, 'r') as fo:
         roster_data = yaml.load(fo)
+
+    active_project = os.path.join(plm_projects, plm_active)
 
     tags = set([])
     players = {}
@@ -217,13 +242,19 @@ def create_project():
     A short name that will sort in a useful way is suggested, e.g., `2022-4Q-TU`
     for scheduling Tuesdays in the 4th quarter of 2022.\
     """)
-    project_name = session.prompt("project name: ")
+    if plm_active:
+        project_name = session.prompt("project name: [plm_active]")
+        if project_name.strip() == "":
+            project_name = plm_active
+    else:
+        project_name = session.prompt("project name: ")
     project = os.path.join(plm_projects, project_name)
     if not os.path.exists(project):
         os.mkdir(project)
         print(f"created directory: {project}")
     else:
         print(f"using existing directory: {project}")
+
 
 
     responses_file = os.path.join(project, 'responses.yaml')

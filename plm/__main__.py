@@ -122,16 +122,38 @@ def main():
 """)
         logger.info(f"Created '{roster}'")
 
+    active = os.path.join(plmhome, 'active.yaml')
+
+    if os.path.isfile(active):
+        with open(active, 'r') as fo:
+            active_data = yaml.load(fo)
+            active = active_data['active']
+
+
+    else:
+        with open(active, 'w') as fo:
+            fo.write("""\
+# plm active project file
+active_project: None
+""")
+            logger.info(f"Created '{active}'")
+
     projects = os.path.join(plmhome, 'projects')
     if not os.path.isdir(projects):
         os.makedirs(projects)
         logger.info(f"Created '{projects}'")
+    if active and os.path.isdir(os.path.join(projects, active)):
+        plm_active = active
+    else:
+        plm_active = None
+    logger.info(f"Active project '{plm_active}'")
 
     import plm.plm as plm
     plm.logger = logger
     plm.plm_version = plm_version
     plm.plm_projects = projects
     plm.plm_roster = roster
+    plm.plm_active = plm_active
 
     plm.main()
 
