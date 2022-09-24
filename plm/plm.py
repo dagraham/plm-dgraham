@@ -8,10 +8,11 @@ from prompt_toolkit import prompt
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.completion import NestedCompleter
+from prompt_toolkit.completion import FuzzyWordCompleter
 from collections import OrderedDict
 import pyperclip
 
-
+import ruamel.yaml
 from ruamel.yaml import YAML
 yaml = YAML(typ='safe', pure=True)
 import os
@@ -38,9 +39,11 @@ COLUMNS, ROWS  = shutil.get_terminal_size()
 
 # WEEK_DAY = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 
+cwd = os.getcwd()
+
 def copy_to_clipboard(text):
     pyperclip.copy(text)
-    print(f"copied {text} to system clipboard")
+    print(f"copied to system clipboard")
 
 def openWithDefault(path):
     parts = [x.strip() for x in path.split(" ")]
@@ -70,37 +73,26 @@ def openWithDefault(path):
         show_message('goto', f"failed to open '{path}'")
     return
 
+
+def get_project():
+    possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
+    completer = FuzzyWordCompleter(possible)
+    proj = prompt("project: ", completer=completer).strip()
+    project = os.path.join(plm_projects, proj)
+    if os.path.isfile(project):
+        return project
+    else:
+        return None
+
+
 def edit_roster():
     openWithDefault(plm_roster)
 
+
 def edit_project():
-    project_hsh = {}
-    possible = [x for x in os.listdir(plm_projects) if os.path.isdir(os.path.join(plm_projects, x))]
-
-    for proj in possible:
-        tmp = {}
-        files = os.listdir(os.path.join(plm_projects, proj))
-        for file in files:
-            if file in ['letter.txt', 'responses.yaml', 'schedule.txt']:
-                tmp[file] = None
-        project_hsh[proj] = tmp if tmp else None
-    completer = NestedCompleter.from_nested_dict(project_hsh)
-    print(f"""
-Press <space> to show completions for the project name and then again
-for the file name.""")
-    comp = []
-    while len(comp) < 2:
-        path_to_edit = prompt("project and file to edit: ", completer=completer)
-        comp = [x.strip() for x in path_to_edit.split(' ') if x.strip()]
-        if len(comp) < 2:
-            print(f"You selected {comp} - both a project and file need to be selected")
-    rel_path = os.path.join(comp[0], comp[1])
-    file_path = os.path.join(plm_projects, rel_path)
-
-    if os.path.isfile(file_path):
-        openWithDefault(file_path)
-    else:
-        print(f"'{file_path}' is not a file")
+    project = get_project()
+    if project:
+        openWithDefault(project)
 
 def main():
 
@@ -114,45 +106,30 @@ def main():
 
     """
 
-    with open(plm_active, 'r') as fo:
-        active_data = yaml.load(fo)
-    active_project = active_data['active_project']
-    print(f"Active project: {active_project}")
-
     parser = argparse.ArgumentParser(
             description=f"Player Lineup Manager [v {plm_version}]",
             prog='plm')
 
     parser.add_argument("-r", "--roster",
-            help="Open 'roster.yaml' using the default text editor to enter player names and email addresses (1)", action="store_true")
+            help="Open 'roster.yaml' using the default text editor to enter player names and email addresses", action="store_true")
 
-    # FIXME: allow selection of existing project
     parser.add_argument("-p", "--project",
-            help="Create a project (2)", action="store_true")
+            help="Create a project", action="store_true")
 
-    parser.add_argument("-", "--project",
-            help="Create a project (2)", action="store_true")
+    parser.add_argument("-q", "--query",
+            help="Query players for their cannot play dates", action="store_true")
 
-    # FIXME:
-    parser.add_argument("-a", "--addresses",
-            help="Copy project email addresses to the system clipboard (3)", action="store_true")
-
-    # FIXME:
-    parser.add_argument("-b", "--body",
-            help="Copy project email body requesting cannot play dates to the system clipboard (4)", action="store_true")
-
-    # FIXME:
     parser.add_argument("-e", "--enter",
-            help="Open the project 'responses.yaml' file using the default text editor to enter player cannot play dates (5)", action="store_true")
-
-    # FIXME:
-    parser.add_argument("-s", "--schedule",
-            help="Process player responses to create the project schedule and copy it to the system clipboard (6)", action="store_true")
+            help="Enter player's responses for their cannot play dates", action="store_true")
 
     parser.add_argument("-o", "--open",
-            help="Choose a project and file to open using the default text editor", action="store_true")
+            help="Open an existing project file using the default text editor to enter players cannot play dates", action="store_true")
 
-    # parser.add_argument("")
+    parser.add_argument("-s", "--schedule",
+            help="Process player responses to create the project schedule", action="store_true")
+
+    parser.add_argument("-d", "--deliver",
+            help="Deliver the project schedule to the players", action="store_true")
 
     parser.add_argument("-v",  "--version",
             help="check for an update to a later plm version", action="store_true")
@@ -172,14 +149,29 @@ def main():
         create_project()
         return
 
+    if args.query:
+        query_players()
+        return
+
+    if args.enter:
+        enter_responses()
+        return
 
     if args.schedule:
-        make_schedule()
+        create_schedule()
         return
 
-    if args.roster:
-        edit_roster()
+    if args.deliver:
+        deliver_schedule()
         return
+
+    # if args.addresses:
+    #     copy_addresses()
+    #     return
+
+    # if args.email:
+    #     copy_email()
+    #     return
 
     if args.open:
         edit_project()
@@ -222,7 +214,7 @@ def create_project():
     with open(plm_roster, 'r') as fo:
         roster_data = yaml.load(fo)
 
-    active_project = os.path.join(plm_projects, plm_active)
+    # active_project = os.path.join(plm_projects, plm_active)
 
     tags = set([])
     players = {}
@@ -233,39 +225,41 @@ def create_project():
             players.setdefault(tag, []).append(player)
             tags.add(tag)
     player_tags = [tag for tag in players.keys()]
-    tag_completer = WordCompleter(player_tags)
+    tag_completer = FuzzyWordCompleter(player_tags)
 
 
     print(f"""
-    A name is required for the project. It will be used to create a sub-directory
-    of the projects directory: {plm_projects}.
-    A short name that will sort in a useful way is suggested, e.g., `2022-4Q-TU`
-    for scheduling Tuesdays in the 4th quarter of 2022.\
+    A name is required for the project. It will be used to create a file
+    in the projects directory,
+        {plm_projects}
+    combining the project name with the extension 'yaml'.
+    A short name that will sort in a useful way is suggested, e.g.,
+    `2022-4Q-TU` for scheduling Tuesdays in the 4th quarter of 2022.\
     """)
-    if plm_active:
-        project_name = session.prompt("project name: [plm_active]")
-        if project_name.strip() == "":
-            project_name = plm_active
+    project_name = session.prompt("project name: ").strip()
+    project_file = os.path.join(plm_projects, os.path.splitext(project_name)[0] + '.yaml')
+
+    if not os.path.exists(project_file):
+        with open(project_file, 'a') as fo:
+            pass
+        print(f"created: {project_file}")
     else:
-        project_name = session.prompt("project name: ")
-    project = os.path.join(plm_projects, project_name)
-    if not os.path.exists(project):
-        os.mkdir(project)
-        print(f"created directory: {project}")
-    else:
-        print(f"using existing directory: {project}")
+        print(f"using the existing: {project_file}")
+        print("WARNING: THIS FILE WILL BE OVERWRITTEN ")
+        ok = session.prompt(f"overwrite {project_file}: [yN] ").strip()
+        if not ok.lower() == 'y':
+            print('cancelling')
+            sys.exit()
 
-
-
-    responses_file = os.path.join(project, 'responses.yaml')
-    letter_file = os.path.join(project, 'letter.txt')
+    # responses_file = os.path.join(project, 'responses.yaml')
+    # letter_file = os.path.join(project, 'letter.txt')
 
     print(f"""
     A user friendly title is needed to use as the subject of emails sent
     to players initially requesing their "cannot play" dates and subsequently
     containing the schedules, e.g., `Tuesday Tennis`.""")
 
-    title = session.prompt("project title: ")
+    title = session.prompt("project title: ").strip()
 
     print(f"""
     The players for this project will be those that have the tag you specify
@@ -277,8 +271,6 @@ def create_project():
         print(f"'{tag}' is not in {', '.join(player_tags)}")
         print(f"Available player tags: {', '.join(player_tags)}")
         tag = session.prompt(f"player tag: ", completer=tag_completer, complete_while_typing=True)
-
-
 
     print(f"Selected players with tag '{tag}':")
     for player in players[tag]:
@@ -356,58 +348,56 @@ def create_project():
     eg_yes = eg_day.format("M/D")
     eg_no = eg_day.format("MMMM D")
 
-    tmpl = f"""# created by create-project.py
-    TITLE: {title}
-    NUM_COURTS: {numcourts}
-    NUM_PLAYERS: {numplayers}
-    BEGIN: {beginning_formatted}
-    DAY: {day}
-    END: {ending_formatted}
-    DATES: [{dates}]
+    tmpl = f"""# created by plm -p
+TITLE: {title}
+NUM_COURTS: {numcourts}
+NUM_PLAYERS: {numplayers}
+BEGIN: {beginning_formatted}
+DAY: {day}
+END: {ending_formatted}
+DATES: [{dates}]
 
-    # The names used as the keys in RESPONSES below were
-    # obtained from the file '{plm_roster}'.
-    # Responses are due by {rep_DATE}.
+# The names used as the keys in RESPONSES below were
+# obtained from the file '{plm_roster}'.
+# Responses are due by {rep_DATE}.
 
-    """
-
-
-    lttr_tmpl = f"""\
-    ==== Addresses ====
-    {", ".join(emails)}
-
-    ==== Subject ====
-    {title}
-
-    ==== Body ====
+REQUEST: |
     It's time to set the schedule for these dates:
 
         {dates}
 
-    Please make a note on your calendars to let me have your cannot play dates from this list no later than {rep_date}. I will suppose that anyone who does not reply by this date cannot play on any of the scheduled dates.
+    Please make a note on your calendars to let me have your cannot
+    play dates from this list no later than {rep_date}. I will suppose
+    that anyone who does not reply by this date cannot play on any of
+    the scheduled dates.
 
-    It would help me to copy and paste from your email if you would list your cannot play dates on one line, separated by commas in the same format as the list above. E.g., using {eg_yes}, not {eg_no}.
+    It would help me to copy and paste from your email if you would
+    list your cannot play dates on one line, separated by commas in
+    the same format as the list above. E.g., using {eg_yes}, not
+    {eg_no}.
 
-    If you want to be listed as a possible substitute for any of these dates, then append asterisks to the relevant dates. If, for example, you cannot play on {DATES[0]} and {DATES[3]} but might be able to play on {DATES[2]} and thus want to be listed as a substitute for that date, then your response should be:
+    If you want to be listed as a possible substitute for any of these
+    dates, then append asterisks to the relevant dates. If, for
+    example, you cannot play on {DATES[0]} and {DATES[3]} but might be
+    able to play on {DATES[2]} and thus want to be listed as a
+    substitute for that date, then your response should be
 
         {DATES[0]}, {DATES[2]}*, {DATES[3]}
 
     Short responses:
 
-        none: there are no dates on which you cannot play - equivalent to a
-            list without any dates
+        none: there are no dates on which you cannot play - equivalent
+            to a list without any dates
 
-        all: you cannot play on any of the dates - equivalent to a list with
-            all of the dates
+        all:  you cannot play on any of the dates - equivalent to a
+            list with all of the dates
 
-        sub: you want to be listed as a possible substitute on all of the
-            dates - equivalent to a list of all of the dates with asterisks
-            appended to each
-
+        sub:  you want to be listed as a possible substitute on all of the
+            dates - equivalent to a list of all of the dates with
+            asterisks appended to each date
 
     Thanks,
-    """
-
+"""
 
     response_rows = []
     email_rows = []
@@ -415,25 +405,17 @@ def create_project():
         response_rows.append(f"{player}: nr\n")
         email_rows.append(f"{player}: {addresses[player]}\n")
 
-    if not os.path.exists(letter_file) or session.prompt(f"'./{os.path.relpath(letter_file, cwd)}' exists. Overwrite: ", default="yes").lower() == "yes":
-        os.makedirs(os.path.dirname(letter_file), exist_ok=True)
-        with open(letter_file, 'w') as fo:
-            fo.write(lttr_tmpl)
-        print(f"Saved {letter_file}")
-    else:
-        print("Overwrite cancelled")
-
-    if not os.path.exists(responses_file) or session.prompt(f"'./{os.path.relpath(responses_file, cwd)}' exists. Overwrite: ", default="yes").lower() == "yes":
-        os.makedirs(os.path.dirname(responses_file), exist_ok=True)
-        with open(responses_file, 'w') as fo:
+    if not os.path.exists(project_file) or session.prompt(f"'./{os.path.relpath(project_file, cwd)}' exists. Overwrite: ", default="yes").lower() == "yes":
+        with open(project_file, 'w') as fo:
             fo.write(tmpl)
-            fo.write('RESPONSES:\n')
-            for row in response_rows:
-                fo.write(f"    {row}")
             fo.write('\nADDRESSES:\n')
             for row in email_rows:
                 fo.write(f"    {row}")
-        print(f"Saved {responses_file}")
+            fo.write('\nRESPONSES:\n')
+            for row in response_rows:
+                fo.write(f"    {row}")
+            fo.write('\nSCHEDULE: |\n')
+        print(f"Saved {project_file}")
     else:
         print("Overwrite cancelled")
 
@@ -467,7 +449,7 @@ def select(freq = {}, chosen=[], remaining=[]):
     return freq, chosen, remaining
 
 
-def make_schedule():
+def create_schedule():
     possible = {}
     available = {}
     availabledates = {}
@@ -492,43 +474,37 @@ def make_schedule():
     unavailable = {}
     project_hsh = {}
     session = PromptSession()
-    possible = [x for x in os.listdir(plm_projects) if os.path.isdir(os.path.join(plm_projects, x))]
+    possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
 
-    projects = []
-    for proj in possible:
-        files = os.listdir(os.path.join(plm_projects, proj))
-        if 'letter.txt' in files and 'responses.yaml' in files and 'schedule.txt' in files:
-            projects.append(proj)
+    # projects = []
+    # for proj in possible:
+    #     files = os.listdir(os.path.join(plm_projects, proj))
+    #     if 'letter.txt' in files and 'responses.yaml' in files and 'schedule.txt' in files:
+    #         projects.append(proj)
 
-    project_completer = WordCompleter(projects)
-    print(f"""
-Press <space> to show completions for the project name.""")
+    project_completer = FuzzyWordCompleter(possible)
     proj_to_schedule = prompt("Create schedule for project: ", completer=project_completer).strip()
     proj_path = os.path.join(plm_projects, proj_to_schedule)
 
-    responses_name = os.path.join(proj_path, 'responses.yaml')
-    schedule_name = os.path.join(proj_path, 'schedule.txt')
+    # yaml_data = ruamel.yaml.load(proj_path, ruamel.yaml.RoundTripLoader)
+    # print(yaml_dat)
 
-    if os.path.isfile(responses_name):
-        print(f"{responses_name} is a file")
-    else:
-        print(f"{responses_name} is not a file")
-    with open(responses_name, 'r') as fo:
-        yaml_responses = yaml.load(fo)
+    with open(proj_path, 'r') as fo:
+        yaml_data = yaml.load(fo)
 
-    TITLE = yaml_responses['TITLE']
-    DAY = yaml_responses['DAY']
-    responses = yaml_responses['RESPONSES']
-    addresses = yaml_responses['ADDRESSES']
-    DATES = yaml_responses['DATES']
+    TITLE = yaml_data['TITLE']
+    DAY = yaml_data['DAY']
+    responses = yaml_data['RESPONSES']
+    addresses = yaml_data['ADDRESSES']
+    DATES = yaml_data['DATES']
 
     RESPONSES = {format_name(k): v for k, v in responses.items()}
     ADDRESSES = {format_name(k): v for k, v in addresses.items()}
 
-    roster = f"./roster.yaml"
-    if not os.path.exists(roster):
-        print(f"Must be executed in the directory that contains '{roster}'.\nExiting")
-        sys.exit()
+    # roster = f"./roster.yaml"
+    # if not os.path.exists(roster):
+    #     print(f"Must be executed in the directory that contains '{roster}'.\nExiting")
+    #     sys.exit()
 
     # get the roster
     NAMES = [x for x in RESPONSES.keys()]
@@ -548,7 +524,7 @@ Press <space> to show completions for the project name.""")
         print("Not yet responded:\n  {0}\n".format("\n  ".join(notresponded)))
 
 
-    NUM_COURTS = yaml_responses['NUM_COURTS']
+    NUM_COURTS = yaml_data['NUM_COURTS']
 
     # get available players for each date
     for name in NAMES:
@@ -887,13 +863,214 @@ dates on which a court is scheduled have asterisks.
     output.append("""\
 * An entry such as 2/[7(3)] would mean that there were 3 occasions
   in which i) a player was available 7 times when other players were
-  scheduled and ii) the player was unscheduled 2 of those 7 times.
+  scheduled and ii) the player was unscheduled 2 of those 3 times.
 """)
 
-    if not os.path.exists(schedule_name) or session.prompt(f"'{schedule_name}' exists. Overwrite: ", default="yes").lower() == "yes":
-        with open(schedule_name, 'w') as fo:
-            fo.write("\n".join(output))
-            print(f"updated {schedule_name}")
+    # FIXME: append to <project>.yaml
+    # if not os.path.exists(schedule_name) or session.prompt(f"'{schedule_name}' exists. Overwrite: ", default="yes").lower() == "yes":
+    #     with open(schedule_name, 'w') as fo:
+    #         fo.write("\n".join(output))
+    #         print(f"updated {schedule_name}")
+
+    # schedule = "\n".join([f"{x[2:]}" for x in output])
+    schedule = "\n".join(output)
+
+    yaml_data['SCHEDULE'] = schedule
+
+    with open(proj_path, 'w') as fn:
+        # yaml.default_flow_style = False
+        yaml.indent(mapping=2, sequence=4, offset=2)
+        yaml.dump(yaml_data, fn)
+
+
+def query_players():
+    print("""
+This will help you prepare an email to request cannot play dates
+from the relevant players. You will need to open your favorite
+email application, create a new email and be ready to paste
+(1) the addresses, (2) the subject and (3) the body into the email.
+""")
+    print("The first step is to select the project.")
+    project = get_project()
+    if not project:
+        print("Cancelled")
+        return
+    with open(project) as fo:
+        yaml_data = yaml.load(fo)
+
+    ADDRESSES = yaml_data['ADDRESSES']
+    addresses = ', '.join([v for k, v in ADDRESSES.items()])
+    copy_to_clipboard(addresses)
+
+    print("""
+The email addresses for the relevant players have been copied
+to the system clipboard. When you have pasted them into the "to"
+section of your email, press <return> to continue to the next step.
+""")
+    ok = prompt("Continue: ", default='yes')
+
+    if not ok == 'yes':
+        print("Cancelled")
+        return
+
+    title = yaml_data['TITLE']
+    copy_to_clipboard(f"{title} - request for cannot play dates")
+
+    print("""
+The email subject has been copied to the system clipboard. When you
+have pasted it into the "subject" section of your email, press
+<return> to continue to the next step.
+""")
+    ok = prompt("Continue: ", default='yes')
+
+    request = yaml_data['REQUEST']
+    copy_to_clipboard(request)
+
+    print("""
+The request has been copied to the system clipboard. When you
+have pasted it into the "body" section of your email, your email
+should be ready to send.
+""")
+
+def deliver_schedule():
+    print("""
+This will help you prepare an email to send the completed schedule
+for a project to the relevant players. You will need to open your
+favorite email application, create a new email and be ready to paste
+(1) the addresses, (2) the subject and (3) the body into the email.
+""")
+
+    print("The first step is to select the project.")
+    project = get_project()
+    if not project:
+        print("Cancelled")
+        return
+    with open(project) as fo:
+        yaml_data = yaml.load(fo)
+
+    ADDRESSES = yaml_data['ADDRESSES']
+    addresses = ', '.join([v for k, v in ADDRESSES.items()])
+    copy_to_clipboard(addresses)
+
+    print("""
+The email addresses for the relevant players have been copied
+to the system clipboard. When you have pasted them into the "to"
+section of your email, press <return> to continue to the next step.
+""")
+    ok = prompt("Continue: ", default='yes')
+
+    if not ok == 'yes':
+        print("Cancelled")
+        return
+
+    title = yaml_data['TITLE']
+    copy_to_clipboard(f"{title} - Schedule")
+
+    print("""
+The email subject has been copied to the system clipboard. When you
+have pasted it into the "subject" section of your email, press
+<return> to continue to the next step.
+""")
+    ok = prompt("Continue: ", default='yes')
+
+    schedule = yaml_data['SCHEDULE']
+    copy_to_clipboard(schedule)
+
+    print("""
+The schedule has been copied to the system clipboard. When you
+have pasted it into the "body" section of your email your email
+should be ready to send.
+""")
+
+def enter_responses():
+
+    project = get_project()
+    if not project:
+        print("Cancelled")
+        return
+    with open(project) as fo:
+        yaml_data = yaml.load(fo)
+
+
+    RESPONSES = yaml_data['RESPONSES']
+    DATES = yaml_data['DATES']
+
+    players = FuzzyWordCompleter([x for x in RESPONSES])
+
+    again = True
+    player_default = ""
+    print(f"""\
+The response for a player should be 'all', 'none', 'nr' (no reply)
+or a comma separated list of dates using the month/day format.
+Asterisks can be appended to dates in which the player wants to be
+listed as a sub, e.g., '{DATES[0]}, {DATES[2]}*, {DATES[3]}'. Possible
+dates:
+    {", ".join(DATES)}
+""")
+
+    changes = ""
+    while again:
+        if changes:
+            print("Enter player's name or 'q' to quit and (optionally) save changes.")
+        else:
+            print("Enter player's name or 'q' to quit.")
+        player = prompt("player: ", completer=players).strip()
+        if player == 'q':
+            again = False
+            continue
+        if player not in RESPONSES:
+            print(f"{player} not found, continuing ...")
+            continue
+        else:
+            default = RESPONSES[player]
+            if isinstance(default, list):
+                default = ", ".join(default)
+            response = prompt(f"{player}: ", default=default)
+            tmp = []
+            if isinstance(response, str):
+                response = response.strip().lower()
+                if response in ['na', 'nr']:
+                    RESPONSES[player] = 'nr'
+                elif response == 'none':
+                    RESPONSES[player] = 'none'
+                elif response == 'all':
+                    RESPONSES[player] = 'all'
+                else: # comma separated list of dates
+                    tmp = [x.strip() for x in response.split(',')]
+            else: # list of dates
+                tmp = response
+            if tmp:
+                issues = []
+                dates = []
+                for x in tmp:
+                    if x.endswith("*") and x[:-1] in DATES:
+                        dates.append(x)
+                    elif x in DATES:
+                        dates.append(x)
+                    else:
+                        issues.append(x)
+                if issues:
+                    print(f"bad dates: {', '.join(issues)}")
+                else:
+                    RESPONSES[player] = dates
+
+            new = RESPONSES[player]
+            if isinstance(new, list):
+                new = ", ".join(new)
+            if new != default:
+                changes += f"  {player}: {new}\n"
+
+    if changes:
+        print(f"Changes:\n{changes}")
+        ok = prompt("Save changes: [Yn] ", default='y').strip().lower()
+        if ok == 'y':
+            with open(project, 'w') as fn:
+                # yaml.default_flow_style = False
+                yaml.indent(mapping=2, sequence=4, offset=2)
+                yaml.dump(yaml_data, fn)
+    else:
+        print("no changes to save")
+
 
 
 def print_head(s):
@@ -902,6 +1079,7 @@ def print_head(s):
 
 
 def format_head(s):
+    s = s.strip()
     return f"""\
 {s.upper()}
 {"="*len(s)}
