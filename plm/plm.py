@@ -76,6 +76,7 @@ def openWithDefault(path):
 
 def get_project():
     possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
+    possible.sort()
     completer = FuzzyWordCompleter(possible)
     proj = prompt("project: ", completer=completer).strip()
     project = os.path.join(plm_projects, proj)
@@ -261,7 +262,7 @@ def create_project():
     print(f"""
     A user friendly title is needed to use as the subject of emails sent
     to players initially requesing their "cannot play" dates and subsequently
-    containing the schedules, e.g., `Tuesday Tennis`.""")
+    containing the schedules, e.g., `Tuesday Tennis 4th Quarter 2022`.""")
 
     title = session.prompt("project title: ").strip()
 
@@ -870,13 +871,6 @@ dates on which a court is scheduled have asterisks.
   scheduled and ii) the player was unscheduled 2 of those 3 times.
 """)
 
-    # FIXME: append to <project>.yaml
-    # if not os.path.exists(schedule_name) or session.prompt(f"'{schedule_name}' exists. Overwrite: ", default="yes").lower() == "yes":
-    #     with open(schedule_name, 'w') as fo:
-    #         fo.write("\n".join(output))
-    #         print(f"updated {schedule_name}")
-
-    # schedule = "\n".join([f"{x[2:]}" for x in output])
     schedule = "\n".join(output)
 
     yaml_data['SCHEDULE'] = schedule
@@ -918,8 +912,9 @@ section of your email, press <return> to continue to the next step.
         print("Cancelled")
         return
 
+    # projname = os.path.splitext(os.path.split(project)[1])[0]
     title = yaml_data['TITLE']
-    copy_to_clipboard(f"{title} - request for cannot play dates")
+    copy_to_clipboard(f"{title} - dates request")
 
     print("""
 The email subject has been copied to the system clipboard. When you
@@ -968,6 +963,7 @@ section of your email, press <return> to continue to the next step.
         print("Cancelled")
         return
 
+    # projname = os.path.splitext(os.path.split(project)[1])[0]
     title = yaml_data['TITLE']
     copy_to_clipboard(f"{title} - Schedule")
 
