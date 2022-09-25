@@ -371,9 +371,9 @@ REQUEST: |
         {dates}
 
     Please make a note on your calendars to let me have your cannot
-    play dates from this list no later than {rep_date}. I will suppose
-    that anyone who does not reply by this date cannot play on any of
-    the scheduled dates.
+    play dates from this list no later than {rep_date}.
+    I will suppose that anyone who does not reply by this date cannot
+    play on any of the scheduled dates.
 
     It would help me to copy and paste from your email if you would
     list your cannot play dates on one line, separated by commas in
@@ -885,6 +885,7 @@ dates on which a court is scheduled have asterisks.
         # yaml.default_flow_style = False
         yaml.indent(mapping=2, sequence=4, offset=2)
         yaml.dump(yaml_data, fn)
+        print(f"Schedule saved to {proj_path}")
 
 
 def query_players():
@@ -1039,6 +1040,8 @@ dates:
                     RESPONSES[player] = 'none'
                 elif response == 'all':
                     RESPONSES[player] = 'all'
+                elif response == 'sub':
+                    RESPONSES[player] = 'sub'
                 else: # comma separated list of dates
                     tmp = [x.strip() for x in response.split(',')]
             else: # list of dates
