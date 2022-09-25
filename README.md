@@ -2,12 +2,12 @@
 
 ## History
 
-Some variant of these scripts have been used since 2014 to schedule tennis doubles matches for a group of around 30 players. Play takes place weekly on the same weekday and time and the schedules are made for a three months (one quarter) at a time. This process involves these steps.
+Some variant of this program has been used since 2014 to schedule tennis doubles matches for a group of around 30 players. Play takes place weekly on the same weekday and time and the schedules are made for a three months (one quarter) at a time. This process involves these steps.
 
-1. Email a request for the dates that the player cannot play to each player.
-2. When the responses have been received, randomly sort available players for each date into groups of 4 taking account of previous pairings.
-3. From each group, randomly select a 'captain' taking account of previous selections.
-4. Email both group and individual schedules to each player.
+- Obtain a list of the dates that each player cannot play.
+- Randomly sort available players for each date into groups of 4 taking account of previous pairings.
+- From each group, randomly select a 'captain' taking account of previous selections.
+- Send the completed schedules to each player.
 
 
 This program uses `python3` which must be installed on your system. To check this open a terminal window and execute the following.
@@ -16,27 +16,13 @@ This program uses `python3` which must be installed on your system. To check thi
 
 The response would be
 
-		`python3 not found`
+		python3 not found
 
 if it is not installed and, otherwise, something like
 
 		/Library/Frameworks/Python.framework/Versions/3.10/bin/python3
 
-
-The two scripts in this program automate each of the steps in this process and allow some flexibility in scheduling dates, number of players per court (doubles or singles), et cetera.
-
-- `create-project.py` prompts for the roster file *tag* which identifies the relevant players and other scheduling details and then creates a corresponding project directory with two files:
-	- `letter.txt` contains the email addresses of the players, the subject and the body of an email to be sent requesting their "cannot play" dates. These can be copied and pasted into your favorite email application.
-	- `responses.yaml` contains various details about the project together with a *responses* section with lines having the format
-
-			lastname, firstname: nr
-
-	as responses are received from players, the `nr` (no response) should be changed to refect the actual response.
-
-- `make-schedule.py` is invoked when all the responses from the players have been recorded. This script performs steps 2 and 3 listed above to produce the schedule for the project, `schedule.txt`.
-
-Both scripts can be run more than once but will warn if file is to be overwritten and ask permission to do so.
-
+The current version of this program automates each of the steps in this process and allows some flexibility in scheduling dates, the number of players per court (doubles or singles), et cetera.
 
 ## Initial Setup
 
@@ -44,32 +30,61 @@ Both scripts can be run more than once but will warn if file is to be overwritte
 
         ~ %
 
+- update the python installation module,  *pip*, using python3
+
+        ~ % python3 -m pip install -U pip
+
+- and then *plm* itself
+
+        ~ % python3 -m pip install -U plm-dgraham
+
+    This will install *plm* and any needed supporting python modules. This same process can also be used to update *plm* when a new version is available.
+
+- invoking *plm* itself without any of the 'switches' gives something like
+
+        ~ % plm
+        usage: plm [-h] [-r] [-p] [-q] [-e] [-s] [-d] [-o] [-v]
+
+        Player Lineup Manager [v 0.0.7]
+
+        options:
+          -h, --help      show this help message and exit
+          -r, --roster    Open 'roster.yaml' using the default text editor to
+                          enter player names and email addresses
+          -p, --project   Create a project (requires roster.yaml)
+          -q, --query     Query players for their cannot play dates (requires
+                          project)
+          -e, --enter     Enter player's responses for their cannot play dates
+                          (requires project)
+          -s, --schedule  Process player responses to create the project
+                          schedule (requires project responses)
+          -d, --deliver   Deliver the project schedule to the players (requires
+                          project schedule)
+          -o, --open      Open an existing project file using the default text
+                          editor
+          -v, --version   check for an update to a later plm version
+
+        ~ % plm
+
 - enter the following to create a directory to use for *plm*
 
-        ~ % mkdir plm_root
+        ~ % mkdir plm
 
-    The name `plm_root` is used just for illustrative purposes - the name can be anything you like.
+    The name "plm" used for the directory is just for illustrative purposes - the directory name can be anything you like.
 
     Within this directory, create a sub-directory called `projects` and a file called `roster.yaml`:
 
-        ~ % cd plm_root
-        ~/plm_root % mkdir projects
-        ~/plm_root % touch roster.yaml
-        ~/plm_root % ls
+        ~ % cd plm
+        ~/plm % mkdir projects
+        ~/plm % touch roster.yaml
+        ~/plm % ls
         projects/  roster.yaml
 
-- use your file manager to place a copy of the *plm* scripts `create-project.py`, `make-schedule.py` and `install_missing.sh` in the `plm_root` directory and then make them executable:
+- You can now open `roster.yaml` in your favorite editor or invoke
 
-        ~/plm_root % chmod +x *.py *.sh
-        ~/plm_root % ls
-        projects/            install_missing.sh  roster.yaml
-        create-projects.py*  make-schedule.py*
+        ~ % plm -r
 
-- install the needed python support files by invoking `install_missing.sh`:
-
-		~/plm_root % ./install_missing.sh
-
-- Next open `roster.yaml` in a text editor and add player information. Each line in the roster file should have the format
+    to let *plm* open the file for you. Each line in the roster file should have the format
 
         lastname, firstname: [emailaddress,  tag1, tag2, ... ]
 
@@ -84,125 +99,42 @@ Both scripts can be run more than once but will warn if file is to be overwritte
     When creating a new project, you will be prompted for the tag of the players to be included so that, in the above example, the tag `mon` would included only Steve, but the tag `tue` would include both Steve and John.
 
 
-## Creating a Project
+## A New Project From Start to Finish
+
+### 1. Create the project file
+
+Change the working directory to `plm`, if necessary, and invoke *plm* with the `-p`, create project, switch:
+
+        ~/plm % plm -p
+
+Then follow the on-line prompts to enter the project information. This information will be stored in a new file, `plm/projects/<project_name>.yaml`, where `<project_name>` is the name you provide for the project. A short name that sorts well and is suggestive is recommended, e.g., `2022-4Q-TU`.
+
+### 2. Request cannot play dates
+
+With the project file created, the next step is to request the cannot play dates from the players. To do this, invoke *plm* with the `-q`, query players, switch:
+
+        ~/plm % plm -q
+
+You will be advised to open your favorite email application and create a new, empty email. You will then be prompted to select the relevant project. Tab completion is available to choose the project you created in the previous step. When you have selected the project, you will then be advised that the relevant email addresses have been copied to the system clipboard. Paste these into the "To" section of your new email and then press <return> in *plm* to continue. You will next be advised that the relevant subject has been copied to the system clipboard. Paste this into the "Subject" section of your email and again press <return> in *plm* to continue. You will finally be advised that the body of the request email has been copied to the system clipboard for you to paste into your email. The request step is complete when you have sent the completed email.
 
 
-- Change the working directory to `plm_root`, if necessary, and invoke `create-project.py`:
+### 3. Enter player cannot play responses
 
-        ~/plm_root % ./create-project.py
+To do this, invoke *plm* with the `-e`, enter responses, switch:
 
-    Then follow the on-line prompts to enter the project information.
+        ~/plm % plm -e
 
-    This script will create a new directory in `plm_root/projects` containing two files, `responses.yaml` and `letter.txt`. The later contains the email addresses of the players and the subject and body of an email to send to them requesting their "cannot play" dates. This is an illustration of the body of `letter.txt`:
-
-    > It's time to set the schedule for these dates:
-
-    >> 10/4, 10/11, 10/18, 10/25, 11/1, 11/8, 11/15, 11/22, 11/29, 12/6, 12/13, 12/20, 12/27
-
-    > Please make a note on your calendars to let me have your cannot play dates from this list no later than 6PM on Saturday, September 17. I will suppose that anyone who does not reply by this date cannot play on any of the scheduled dates.
-    >
-    > It would help me to copy and paste from your email if you would list your cannot play dates on one line, separated by commas in the same format as the list above. E.g., using 10/11, not October 11.
-    >
-    > If you want to be listed as a possible substitute for any of these dates, then append asterisks to the relevant dates. If, for example, you cannot play on 10/4 and 10/25 but might be able to play on 10/18 and thus want to be listed as a substitute for that date, then your response should be:
-
-    >> 10/4, 10/18*, 10/25
-
-    > Alternative shortcut responses:
-
-    > all: you cannot play on any of the dates - equivalent to a list with all of the dates
-    >
-    > sub: you want to be listed as a possible substitute on all of the dates - equivalent to a list of all of the dates with asterisks appended to each
-    >
-    > none: there are no dates on which you cannot play - equivalent to a list without any dates
+Again you will be prompted to choose the relevant project with tab completion available. This begins a loop in which you can choose a player using tab completion and then enter the player's response. This process continues until you enter a 'q' to end the loop and, if changes have been made, you are asked whether or not you would like to save them.
 
 
+### 4. Process responses to create the schedule
 
-    And this is an illustration of the relevant part of `reponses.yaml`:
+Invoke *plm* with the `-s`, schedule, switch after all player responses have been received and recorded. Again, you will be prompted to choose the relevant project using tab completion. The schedule will be processes and added to the project file with no further input required.
 
-	> RESPONSES:
-	>>	Doaks, Steve: nr
-	>>	Smith, John: nr
-	>>	...
+### 5. Deliver the completed schedule to the players
 
-    The `nr` stands for "no response" (yet).
+This step involves invoking *plm* with the `-d`, deliver, switch.
 
-    As the responses from the players are received, they can be entered into `responses.yaml`.
+        ~/plm % plm -s
 
-		RESPONSES:
-			Doaks, Steve: none
-			Smith, John: [10/4, 10/18*, 10/25]
-			...
-
-    Notice the square brackets around the list of Smith's cannot play dates.
-
-    Note: *yaml* files have a format that makes them both easy to edit and easy for programs, such as python, to read. The important thing to remember is that the indentions matter and that they always use *spaces* and not *tabs*.
-
-- invoke `make-schedule.py` after all player responses have been received and recorded and follow the on-line prompts.
-
-        ~/plm_root % ./make-schedule.py
-
-    This script will create another file, `schedule.txt` in the project directory, containing the completed schedule to be emailed to the players. The list of email addresses can be copied from `letter.txt` and pasted into your email agent together with the body from `schedule.txt`.
-
-	Here is an illustration of `schedule.txt`
-
-    > TUESDAY TENNIS
-    >
-    > 1) The captain is responsible for reserving a court and providing
-    > balls.
-    > 2) A player who is scheduled to play but, for whatever reason,
-    > cannot play is responsible for finding a substitute and for
-    > informing the other three players in his group.
-    >
-    >
-    > BY DATE
-    >
-    > 1) The player listed first in each 'Scheduled' group is the
-    > captain for that group.
-    > 2) 'Unscheduled' players for a date were available to play but were
-    > not assigned. If you are among these available but unassigned
-    > players, would you please reach out to other players, even
-    > players from outside the group, before other plans are made to
-    > see if a foursome could be scheduled? Email addresses are in
-    > the 'BY PLAYER' section below for those in the group.
-    > 3) 'Substitutes' for a date asked not to be scheduled but instead
-    > to be listed as possible substitutes.
-    >
-    > Tue Oct 4
-    > 	Scheduled
-    > 	1: Steve Doaks, ...
-    > 	2: ...
-    > 	Unscheduled: ...
-    > 	Substitutes: ...
-    >
-    > Tue Oct 11
-    >   ...
-    >
-	> ...
-
-    > BY PLAYER
-    >
-    > Scheduled dates on which the player is captain and available
-    > dates on which a court is scheduled have asterisks.
-    >
-    > Steve Doaks: stvdoaks312@gmail.com
-    > 	SCHEDULED (3): 10/4*, 10/11, ...
-    > 	available (13): 10/4*, 10/11*, ...
-    > 	unavailable (0):
-    > 	substitute (0): none
-    > 	with: John Smith 2, ...
-    >
-    > John Smith: jsmith123@gmail.com
-    > 	...
-    >
-	> ...
-    >
-    >
-    > SUMMARY
-    >
-    > Times unscheduled/times available and others scheduled: ...
-    >
-    > Times captain/times scheduled: ...
-    >
-    > Scheduled dates (13): 10/4, 10/11, 10/18, 10/25, 11/1, 11/8, 11/15,
-    > 		11/22, 11/29, 12/6, 12/13, 12/20, 12/27
-
+As with the process for requesting cannot play dates, this prompts for the relevant project and then successively copies 1) the email addresses, 2) the subject and 3) the schedule itself to the system clipboard so that each can be pasted in turn into an email to be sent to the relevant players.

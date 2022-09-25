@@ -114,22 +114,22 @@ def main():
             help="Open 'roster.yaml' using the default text editor to enter player names and email addresses", action="store_true")
 
     parser.add_argument("-p", "--project",
-            help="Create a project", action="store_true")
+            help="Create a project (requires roster.yaml)", action="store_true")
 
     parser.add_argument("-q", "--query",
-            help="Query players for their cannot play dates", action="store_true")
+            help="Query players for their cannot play dates (requires project)", action="store_true")
 
     parser.add_argument("-e", "--enter",
-            help="Enter player's responses for their cannot play dates", action="store_true")
-
-    parser.add_argument("-o", "--open",
-            help="Open an existing project file using the default text editor to enter players cannot play dates", action="store_true")
+            help="Enter player's responses for their cannot play dates (requires project)", action="store_true")
 
     parser.add_argument("-s", "--schedule",
-            help="Process player responses to create the project schedule", action="store_true")
+            help="Process player responses to create the project schedule (requires project responses)", action="store_true")
 
     parser.add_argument("-d", "--deliver",
-            help="Deliver the project schedule to the players", action="store_true")
+            help="Deliver the project schedule to the players (requires project schedule)", action="store_true")
+
+    parser.add_argument("-o", "--open",
+            help="Open an existing project file using the default text editor", action="store_true")
 
     parser.add_argument("-v",  "--version",
             help="check for an update to a later plm version", action="store_true")
@@ -143,6 +143,10 @@ def main():
     if args.version:
         res = check_update()
         print(res)
+        return
+
+    if args.roster:
+        edit_roster()
         return
 
     if args.project:
