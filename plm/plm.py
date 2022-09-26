@@ -121,7 +121,7 @@ def main():
             help="Query players for their cannot play dates (requires project)", action="store_true")
 
     parser.add_argument("-e", "--enter",
-            help="Enter player's responses for their cannot play dates (requires project)", action="store_true")
+            help="Enter players' responses for their cannot play dates (requires project)", action="store_true")
 
     parser.add_argument("-s", "--schedule",
             help="Process player responses to create the project schedule (requires project responses)", action="store_true")
@@ -130,7 +130,7 @@ def main():
             help="Deliver the project schedule to the players (requires project schedule)", action="store_true")
 
     parser.add_argument("-o", "--open",
-            help="Open an existing project file using the default text editor", action="store_true")
+                        help="Open an existing project file using the default text editor. Warning: editing this file directly is not recommended.", action="store_true")
 
     parser.add_argument("-v",  "--version",
             help="check for an update to a later plm version", action="store_true")

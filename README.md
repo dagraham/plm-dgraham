@@ -2,27 +2,28 @@
 
 ## History
 
-Some variant of this program has been used since 2014 to schedule tennis doubles matches for a group of around 30 players. Play takes place weekly on the same weekday and time and the schedules are made for a three months (one quarter) at a time. This process involves these steps.
+Some variant of this program has been used since 2014 to schedule tennis doubles matches for a group of around 30 players. Play takes place weekly on the same weekday and time and the schedules are made for a three months (one quarter) at a time. The process involved these steps.
 
 - Obtain a list of the dates that each player cannot play.
 - Randomly sort available players for each date into groups of 4 taking account of previous pairings.
 - From each group, randomly select a 'captain' taking account of previous selections.
-- Send the completed schedules to each player.
+- Produce a "user friendly" version of the schedule organized both by date and by player.
+- Send the completed schedule to each player.
 
 
 This program uses `python3` which must be installed on your system. To check this open a terminal window and execute the following.
 
 		~ % which python3
 
-The response would be
-
-		python3 not found
-
-if it is not installed and, otherwise, something like
+If python3 is installed the response should be something like
 
 		/Library/Frameworks/Python.framework/Versions/3.10/bin/python3
 
-The current version of this program automates each of the steps in this process and allows some flexibility in scheduling dates, the number of players per court (doubles or singles), et cetera.
+and, otherwise,
+
+		python3 not found
+
+The current version of this program automates each of the steps in this process and allows some flexibility in scheduling dates, indicating a willingness to be a substitute, specifying the number of players per court (doubles or singles), and so forth. A further change is that all information relevant to a project is now stored in a single, project file in *yaml* format. A final change is that *plm* is now available both from *PyPi*, [plm-dgraham](https://pypi.org/project/plm-dgraham/) and from *GitHub*, [dagraham/plm-dgraham](https://github.com/dagraham/plm-dgraham).
 
 ## Initial Setup
 
@@ -30,7 +31,7 @@ The current version of this program automates each of the steps in this process 
 
         ~ %
 
-- update the python installation module,  *pip*, using python3
+- update the python installation module, *pip*, using python3
 
         ~ % python3 -m pip install -U pip
 
@@ -54,14 +55,16 @@ The current version of this program automates each of the steps in this process 
           -p, --project   Create a project (requires roster.yaml)
           -q, --query     Query players for their cannot play dates (requires
                           project)
-          -e, --enter     Enter player's responses for their cannot play dates
+          -e, --enter     Enter players' responses for their cannot play dates
                           (requires project)
           -s, --schedule  Process player responses to create the project
                           schedule (requires project responses)
           -d, --deliver   Deliver the project schedule to the players (requires
                           project schedule)
           -o, --open      Open an existing project file using the default text
-                          editor
+						  editor. Warning: editing this file directly is not
+						  recommended.
+
           -v, --version   check for an update to a later plm version
 
         ~ % plm
@@ -115,7 +118,7 @@ With the project file created, the next step is to request the cannot play dates
 
         ~/plm % plm -q
 
-You will be advised to open your favorite email application and create a new, empty email. You will then be prompted to select the relevant project. Tab completion is available to choose the project you created in the previous step. When you have selected the project, you will then be advised that the relevant email addresses have been copied to the system clipboard. Paste these into the "To" section of your new email and then press <return> in *plm* to continue. You will next be advised that the relevant subject has been copied to the system clipboard. Paste this into the "Subject" section of your email and again press <return> in *plm* to continue. You will finally be advised that the body of the request email has been copied to the system clipboard for you to paste into your email. The request step is complete when you have sent the completed email.
+You will be advised to open your favorite email application and create a new, empty email. You will then be prompted to select the relevant project. Tab completion is available to choose the project you created in the previous step. When you have selected the project, you will then be advised that the relevant email addresses have been copied to the system clipboard. Paste these into the "To" section of your new email and then press *return* in *plm* to continue. You will next be advised that the relevant subject has been copied to the system clipboard. Paste this into the "Subject" section of your email and again press *return* in *plm* to continue. You will finally be advised that the body of the request email has been copied to the system clipboard for you to paste into your email. The request step is complete when you have sent the completed email.
 
 
 ### 3. Enter player cannot play responses
@@ -124,7 +127,7 @@ To do this, invoke *plm* with the `-e`, enter responses, switch:
 
         ~/plm % plm -e
 
-Again you will be prompted to choose the relevant project with tab completion available. This begins a loop in which you can choose a player using tab completion and then enter the player's response. This process continues until you enter a 'q' to end the loop and, if changes have been made, you are asked whether or not you would like to save them.
+Again you will be prompted to choose the relevant project with tab completion available. This begins a loop in which you can choose a player using tab completion and then enter the player's response to the "cannot play dates" query. The response for a player can be 'all', 'none', 'nr' (no response) or a comma separated list of dates using the month/day format. Asterisks can be appended to dates in which the player wants to be listed as a sub, e.g., '10/4, 10/18*, 10/25' for cannot play on 10/4 or 10/25 but might be able to subsitute on 10/18. This process continues until you enter a 'q' to end the loop and, if changes have been made, indicate whether or not you would like to save them.
 
 
 ### 4. Process responses to create the schedule
@@ -135,6 +138,6 @@ Invoke *plm* with the `-s`, schedule, switch after all player responses have bee
 
 This step involves invoking *plm* with the `-d`, deliver, switch.
 
-        ~/plm % plm -s
+        ~/plm % plm -d
 
 As with the process for requesting cannot play dates, this prompts for the relevant project and then successively copies 1) the email addresses, 2) the subject and 3) the schedule itself to the system clipboard so that each can be pasted in turn into an email to be sent to the relevant players.
