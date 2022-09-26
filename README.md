@@ -127,12 +127,17 @@ To do this, invoke *plm* with the `-e`, enter responses, switch:
 
         ~/plm % plm -e
 
-Again you will be prompted to choose the relevant project with tab completion available. This begins a loop in which you can choose a player using tab completion and then enter the player's response to the "cannot play dates" query. The response for a player can be 'all', 'none', 'nr' (no response) or a comma separated list of dates using the month/day format. Asterisks can be appended to dates in which the player wants to be listed as a sub, e.g., '10/4, 10/18*, 10/25' for cannot play on 10/4 or 10/25 but might be able to subsitute on 10/18. This process continues until you enter a 'q' to end the loop and, if changes have been made, indicate whether or not you would like to save them.
+Again you will be prompted to choose the relevant project with tab completion available. This begins a loop in which you can choose a player using tab completion and then enter the player's response to the "cannot play dates" query. The response for a player can be 'all', 'none', 'nr' (no response) or a comma separated list of dates using the month/day format. Asterisks can be appended to dates in which the player wants to be listed as a sub, e.g., '10/4, 10/18*, 10/25' for cannot play on 10/4 or 10/25 but might be able to subsitute on 10/18. This process continues until you enter a 'q' to end the loop and, if changes have been made, indicate whether or not you would like to save them. This entry process can be repeated as often as you like until you are satisfied that all responses have been correctly entered.
 
 
 ### 4. Process responses to create the schedule
 
-Invoke *plm* with the `-s`, schedule, switch after all player responses have been received and recorded. Again, you will be prompted to choose the relevant project using tab completion. The schedule will be processes and added to the project file with no further input required.
+Invoke *plm* with the `-s`, schedule, switch after all player responses have been received and recorded.
+
+        ~/plm % plm -s
+
+Again, you will be prompted to choose the relevant project using tab completion. The schedule will be processed and added to the project file with no further input required.
+
 
 ### 5. Deliver the completed schedule to the players
 
