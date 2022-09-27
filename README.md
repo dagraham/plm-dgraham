@@ -2,7 +2,7 @@
 
 ## History
 
-Some variant of this program has been used since 2014 to schedule tennis doubles matches for a group of around 30 players. Play takes place weekly on the same weekday and time and the schedules are made for a three months (one quarter) at a time. The process involved these steps.
+Some variant of this program has been used since 2014 to schedule tennis doubles matches for a group of around 30 players. Play takes place weekly on Tuesdays using as many courts as necessary and the schedules are made for a three months (one quarter) at a time. More recently, smaller Monday and Friday groups have been added using at most one court. The process involved these steps.
 
 - Obtain a list of the dates that each player cannot play.
 - Randomly sort available players for each date into groups of 4 taking account of previous pairings.
