@@ -97,40 +97,30 @@ def edit_project():
 
 def main():
 
-    """
-    project logic
-    all data in <project>.yaml including responses, addresses, request and schedule
-    plm
-        projects
-            2022-4Q-TU.yaml
-
-
-    """
-
     parser = argparse.ArgumentParser(
-            description=f"Player Lineup Manager [v {plm_version}]",
+            description=f"Player Lineup Manager",
             prog='plm')
 
     parser.add_argument("-r", "--roster",
             help="Open 'roster.yaml' using the default text editor to enter player names and email addresses", action="store_true")
 
     parser.add_argument("-p", "--project",
-            help="Create a project (requires roster.yaml)", action="store_true")
+            help="Create a project (requires roster.yaml with names and email addresses of relevant players)", action="store_true")
 
     parser.add_argument("-q", "--query",
-            help="Query players for their cannot play dates (requires project)", action="store_true")
+            help="Query players for their 'can play' dates (requires existing project)", action="store_true")
 
     parser.add_argument("-e", "--enter",
-            help="Enter players' responses for their cannot play dates (requires project)", action="store_true")
+            help="Enter players' responses for their 'can play' dates (requires existing project)", action="store_true")
 
     parser.add_argument("-s", "--schedule",
-            help="Process player responses to create the project schedule (requires project responses)", action="store_true")
+            help="Process player 'can play' responses to create the project schedule (requires that player responses have been recorded)", action="store_true")
 
     parser.add_argument("-d", "--deliver",
-            help="Deliver the project schedule to the players (requires project schedule)", action="store_true")
+            help="Deliver the completed schedule to the players (requires that project schedule has been processed)", action="store_true")
 
-    parser.add_argument("-o", "--open",
-                        help="Open an existing project file using the default text editor. Warning: editing this file directly is not recommended.", action="store_true")
+    # parser.add_argument("-o", "--open",
+    #         help="Open an existing project file using the default text editor. ", action="store_true")
 
     parser.add_argument("-v",  "--version",
             help="check for an update to a later plm version", action="store_true")
@@ -261,7 +251,7 @@ def create_project():
 
     print(f"""
     A user friendly title is needed to use as the subject of emails sent
-    to players initially requesing their "cannot play" dates and subsequently
+    to players initially requesing their availability dates and subsequently
     containing the schedules, e.g., `Tuesday Tennis 4th Quarter 2022`.""")
 
     title = session.prompt("project title: ").strip()
@@ -284,7 +274,7 @@ def create_project():
     emails = [v for k, v in addresses.items()]
 
     print(f"""
-    The letter sent to players asking for their "cannot play" dates will
+    The letter sent to players asking for their availability dates will
     request a reply by 6pm on the "reply by date" that you specify next.\
             """)
     reply = session.prompt("reply by date: ", completer=None)
@@ -371,31 +361,29 @@ REQUEST: |
 
         {dates}
 
-    Please make a note on your calendars to let me have your cannot
-    play dates from this list no later than {rep_date}.
-    I will suppose that anyone who does not reply by this date cannot
-    play on any of the scheduled dates.
+    Please make a note on your calendars to let me have the dates you
+    can play from this list no later than {rep_date}. Timely replies are
+    greatly appreciated.
 
     It would help me to copy and paste from your email if you would
-    list your cannot play dates on one line, separated by commas in
-    the same format as the list above. E.g., using {eg_yes}, not
-    {eg_no}.
+    list your dates on one line, separated by commas in the same format
+    as the list above. E.g., using {eg_yes}, not {eg_no}.
 
     If you want to be listed as a possible substitute for any of these
     dates, then append asterisks to the relevant dates. If, for
-    example, you cannot play on {DATES[0]} and {DATES[3]} but might be
-    able to play on {DATES[2]} and thus want to be listed as a
-    substitute for that date, then your response should be
+    example, you can play on {DATES[0]} and {DATES[3]} and also want to
+    be listed as a possible substitute on {DATES[2]}, then your response
+    should be
 
         {DATES[0]}, {DATES[2]}*, {DATES[3]}
 
     Short responses:
 
-        none: there are no dates on which you cannot play - equivalent
-            to a list without any dates
+        none: you CANNOT play on any of the dates - equivalent to a
+              list without any dates
 
-        all:  you cannot play on any of the dates - equivalent to a
-            list with all of the dates
+        all:  you CAN play on all of the dates - equivalent to a
+              list with all of the dates
 
         sub:  you want to be listed as a possible substitute on all of the
             dates - equivalent to a list of all of the dates with
@@ -429,13 +417,13 @@ def format_name(name):
     lname, fname = name.split(', ')
     return f"{fname} {lname}"
 
-def select(freq = {}, chosen=[], remaining=[]):
+def select(freq = {}, chosen=[], remaining=[], numplayers=4):
     """
     Add players from remaining to chosen which have the lowest combined
     frequency with players in chosen
     """
 
-    while len(chosen) < 4 and len(remaining) > 0:
+    while len(chosen) < numplayers and len(remaining) > 0:
         talley = []
 
         for other in remaining:
@@ -478,21 +466,19 @@ def create_schedule():
     dates_notscheduled= []
     unavailable = {}
     project_hsh = {}
+    courts_scheduled = {}
     session = PromptSession()
-    possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
+    proj_path = get_project()
+    if not proj_path:
+        print("Cancelled")
+        return
 
-    # projects = []
-    # for proj in possible:
-    #     files = os.listdir(os.path.join(plm_projects, proj))
-    #     if 'letter.txt' in files and 'responses.yaml' in files and 'schedule.txt' in files:
-    #         projects.append(proj)
+    # possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
 
-    project_completer = FuzzyWordCompleter(possible)
-    proj_to_schedule = prompt("Create schedule for project: ", completer=project_completer).strip()
-    proj_path = os.path.join(plm_projects, proj_to_schedule)
-
-    # yaml_data = ruamel.yaml.load(proj_path, ruamel.yaml.RoundTripLoader)
-    # print(yaml_dat)
+    # possible.sort()
+    # project_completer = FuzzyWordCompleter(possible)
+    # proj_to_schedule = prompt("Create schedule for project: ", completer=project_completer).strip()
+    # proj_path = os.path.join(plm_projects, proj_to_schedule)
 
     with open(proj_path, 'r') as fo:
         yaml_data = yaml.load(fo)
@@ -502,14 +488,10 @@ def create_schedule():
     responses = yaml_data['RESPONSES']
     addresses = yaml_data['ADDRESSES']
     DATES = yaml_data['DATES']
+    NUM_PLAYERS = yaml_data['NUM_PLAYERS']
 
     RESPONSES = {format_name(k): v for k, v in responses.items()}
     ADDRESSES = {format_name(k): v for k, v in addresses.items()}
-
-    # roster = f"./roster.yaml"
-    # if not os.path.exists(roster):
-    #     print(f"Must be executed in the directory that contains '{roster}'.\nExiting")
-    #     sys.exit()
 
     # get the roster
     NAMES = [x for x in RESPONSES.keys()]
@@ -536,32 +518,30 @@ def create_schedule():
         # initialize all the name counters
         captain[name] = 0
         notcaptain[name] = 0
-        substitute[name] = 0
+        availabledates[name] = []
+        substitutedates[name] = []
         available[name] = 0
-        # print(f"RESPONSES[{name}]: {RESPONSES[name]}")
-        if RESPONSES[name] in ['na', 'nr', 'all']:
+        playerdates[name] = []
+        if RESPONSES[name] in ['na', 'nr', 'none']:
             availabledates[name] = []
             substitutedates[name] = []
-            unavailable[name] = [x for x in DATES]
-        elif RESPONSES[name] in ['none'] or len(RESPONSES[name]) == 0:
+        elif RESPONSES[name] in ['all'] or len(RESPONSES[name]) == 0:
             availabledates[name] = [x for x in DATES]
             substitutedates[name] = []
-            unavailable[name] = []
         elif RESPONSES[name] in ['sub']:
             availabledates[name] = []
             substitutedates[name] = [x for x in DATES]
-            unavailable[name] = []
         else:
-            availabledates[name] = [x for x in DATES]
-            substitutedates[name] = [x[:-1] for x in RESPONSES[name] if x.endswith("*")]
-            unavailable[name] = [x for x in RESPONSES[name] if not x.endswith("*")]
-
-            for x in substitutedates[name] + unavailable[name]:
-                if x in availabledates[name]:
-                    availabledates[name].remove(x)
+            for x in RESPONSES[name]:
+                if x.endswith("*"):
+                    substitutedates.setdefault(name, []).append(x[:-1])
                 else:
-                    issues.append(f"availabledates[{name}]: {availabledates[name]}")
-                    issues.append("{0} listed for {1} is not an available date".format(x, name))
+                    availabledates[name].append(x)
+
+            baddates = [x for x in availabledates[name] + substitutedates[name] if x not in DATES]
+            if baddates:
+                issues.append(f"availabledates[{name}]: {availabledates[name]}; substitutedates[{name}]: {substitutedates[name]}")
+                issues.append(f"  Not available dates: {baddates}")
 
         for dd in DATES:
             if dd in availabledates[name]:
@@ -569,10 +549,10 @@ def create_schedule():
                 available[name] += 1
             elif dd in substitutedates[name]:
                 substitutebydates.setdefault(dd, []).append(name)
+                substitute.setdefault(name, 0)
                 substitute[name] += 1
 
     num_dates = len(DATES)
-
     freq = {}
     for name in NAMES:
         freq[name] = {}
@@ -592,16 +572,17 @@ def create_schedule():
         selected = availablebydates.get(dd, [])
         possible = availablebydates.get(dd, [])
         if NUM_COURTS:
-            num_courts = min(NUM_COURTS, len(selected)//4)
+            num_courts = min(NUM_COURTS, len(selected)//NUM_PLAYERS)
         else:
-            num_courts = len(selected)//4
+            num_courts = len(selected)//NUM_PLAYERS
+        courts_scheduled[dd] = num_courts
 
         if num_courts:
             dates_scheduled.append(dd)
         else:
             dates_notscheduled.append(dd)
 
-        num_notselected = len(selected) - num_courts * 4 if num_courts else len(selected)
+        num_notselected = len(selected) - num_courts * NUM_PLAYERS if num_courts else len(selected)
 
         if num_notselected:
             # randomly choose the excess players and remove them from selected
@@ -631,11 +612,11 @@ def create_schedule():
             playerdates.setdefault(name, []).append(dd)
 
         if NUM_COURTS:
-            num_courts = min(NUM_COURTS, len(selected)//4)
+            num_courts = min(NUM_COURTS, len(selected)//NUM_PLAYERS)
         else:
-            num_courts = len(selected)//4
+            num_courts = len(selected)//NUM_PLAYERS
 
-        if len(selected) >= 4:
+        if len(selected) >= NUM_PLAYERS:
             for name in unsched:
                 unselected[name] += 1
                 opportunities[name] += 1
@@ -658,9 +639,9 @@ def create_schedule():
         lst = []
         for i in range(num_courts):
             court = []
-            freq, court, players = select(freq, court, players)
+            freq, court, players = select(freq, court, players, NUM_PLAYERS)
             random.shuffle(court)
-            tmp = [(captain[court[j]]/(captain[court[j]] + notcaptain[court[j]] + 1), j) for j in range(4)]
+            tmp = [(captain[court[j]]/(captain[court[j]] + notcaptain[court[j]] + 1), j) for j in range(NUM_PLAYERS)]
             # put the least often captain first
             tmp.sort()
             court = [court[j] for (i, j) in tmp]
@@ -690,7 +671,10 @@ def create_schedule():
         return
 
     DATES_SCHED = [dd for dd in dates_scheduled]
-    schdatestr = "Scheduled dates ({0}): {1}".format(len(DATES_SCHED), ", ".join([x for x in DATES_SCHED])) if DATES_SCHED else "Scheduled dates: none"
+
+    scheduled = [f"{dd} [{courts_scheduled[dd]}]" for dd in dates_scheduled]
+
+    schdatestr = "{0} scheduled dates [courts]: {1}".format(len(scheduled), ", ".join([x for x in scheduled])) if scheduled else "Scheduled dates: none"
 
     output = [format_head(TITLE)]
 
@@ -765,8 +749,26 @@ dates on which a court is scheduled have asterisks.
             response = ', '.join(response) if response else 'none'
         output.append(f"{name}: {ADDRESSES.get(name, 'no email address')}")
 
+        if RESPONSES[name]:
+            if RESPONSES[name] == 'all':
+                response = "all"
+            elif RESPONSES[name] in ['na', 'nr']:
+                response = "no reply"
+            elif RESPONSES[name] == 'sub':
+                response = "sub"
+            elif RESPONSES[name] == 'none':
+                response = "none"
+            else:
+                response = ", ".join(RESPONSES[name])
+
+        playswith = []
+        if name in freq:
+            for other in NAMES:
+                if other not in freq[name] or freq[name][other] == 0:
+                    continue
+                playswith.append("{0} {1}".format(other, freq[name][other]))
+
         if name in playerdates:
-            # playerdates[name].sort()
             player_dates = [x for x in playerdates[name]]
 
             available_dates = availabledates[name]
@@ -776,7 +778,6 @@ dates on which a court is scheduled have asterisks.
                     available_dates[indx] = f"{date}*"
 
             if name in captaindates:
-                # captaindates[name].sort()
                 cptndates = [x for x in captaindates[name]]
                 for date in cptndates:
                     indx = player_dates.index(date)
@@ -784,39 +785,20 @@ dates on which a court is scheduled have asterisks.
 
             datestr = ", ".join(player_dates)
             availstr = ", ".join(available_dates)
-            output.append(wrap_format("    SCHEDULED ({0}): {1}".format(len(player_dates), datestr)))
-            output.append(wrap_format("    available ({0}): {1}".format(len(availabledates[name]), availstr)))
+            output.append(wrap_format(f"    scheduled ({len(player_dates)}): {datestr}"))
+            if playswith:
+                output.append(wrap_format("    playing with: {0}".format(", ".join(playswith))))
+            output.append("    ---")
+            output.append(wrap_format(f"    response: {response}"))
+            if availabledates[name]:
+                output.append(wrap_format("    available ({0}): {1}".format(len(availabledates[name]), availstr)))
 
 
-        if RESPONSES[name]:
-            if RESPONSES[name] == 'all':
-                ua = "all"
-                un = num_dates
-            elif RESPONSES[name] in ['na', 'nr']:
-                ua = "no reply"
-                un = num_dates
-            elif RESPONSES[name] == 'sub':
-                ua = "substitute only"
-                un = 0
-            else:
-                ua = ", ".join(unavailable[name])
-                un = len(unavailable[name])
-            output.append(wrap_format("    unavailable ({0}): {1}".format(un,  ua)))
-
-        if name in substitutedates:
+        if name in substitutedates and substitutedates[name]:
             dates = substitutedates[name]
             datestr = ", ".join(dates) if dates else "none"
             output.append(wrap_format("    substitute ({0}): {1}".format(len(dates), datestr)))
 
-        if name not in freq:
-            continue
-        tmp = []
-        for other in NAMES:
-            if other not in freq[name] or freq[name][other] == 0:
-                continue
-            tmp.append("{0} {1}".format(other, freq[name][other]))
-        if tmp:
-            output.append(wrap_format("    with: {0}".format(", ".join(tmp))))
         output.append('')
 
     output.append('')
@@ -825,51 +807,51 @@ dates on which a court is scheduled have asterisks.
     output.append(format_head(section))
 
 
-    unsel = [(unselected[name], opportunities[name]) for name in opportunities if opportunities[name]]
-    unsel_hsh = {}
-    if unsel:
-        unsel_lst = []
-        for (n, x) in unsel:
-            unsel_hsh.setdefault(str(n), []).append(str(x))
-        for n in unsel_hsh:
-            tmp_hsh = {i: unsel_hsh[n].count(i) for i in unsel_hsh[n]}
-            tmp_lst = []
-            for i in tmp_hsh:
-                if tmp_hsh[i] > 1:
-                    tmp_lst.append(f'{i}({tmp_hsh[i]})')
-                else:
-                    tmp_lst.append(f"{i}")
-            unsel_lst.append(f"{n}/[{', '.join(tmp_lst)}]")
-        output.append(wrap_format(f'Times unscheduled/times available and others scheduled*: {", ".join(unsel_lst)}'))
+    # unsel = [(unselected[name], opportunities[name]) for name in opportunities if opportunities[name]]
+    # unsel_hsh = {}
+    # if unsel:
+    #     unsel_lst = []
+    #     for (n, x) in unsel:
+    #         unsel_hsh.setdefault(str(n), []).append(str(x))
+    #     for n in unsel_hsh:
+    #         tmp_hsh = {i: unsel_hsh[n].count(i) for i in unsel_hsh[n]}
+    #         tmp_lst = []
+    #         for i in tmp_hsh:
+    #             if tmp_hsh[i] > 1:
+    #                 tmp_lst.append(f'{i}({tmp_hsh[i]})')
+    #             else:
+    #                 tmp_lst.append(f"{i}")
+    #         unsel_lst.append(f"{n}/[{', '.join(tmp_lst)}]")
+    #     output.append(wrap_format(f'Times unscheduled/times available and others scheduled*: {", ".join(unsel_lst)}'))
 
-    cap = [(captain[name], captain[name] + notcaptain[name]) for name in available if available[name]]
-    cap_hsh = {}
-    if cap:
-        cap_lst = []
-        for (n, x) in cap:
-            cap_hsh.setdefault(str(n), []).append(str(x))
-        for n in cap_hsh:
-            tmp_hsh = {i: cap_hsh[n].count(i) for i in cap_hsh[n]}
-            tmp_lst = []
-            for i in tmp_hsh:
-                if tmp_hsh[i] > 1:
-                    tmp_lst.append(f'{i}({tmp_hsh[i]})')
-                else:
-                    tmp_lst.append(f"{i}")
-            cap_lst.append(f"{n}/[{', '.join(tmp_lst)}]")
+    # cap = [(captain[name], captain[name] + notcaptain[name]) for name in available if available[name]]
+    # cap_hsh = {}
+    # if cap:
+    #     cap_lst = []
+    #     for (n, x) in cap:
+    #         cap_hsh.setdefault(str(n), []).append(str(x))
+    #     for n in cap_hsh:
+    #         tmp_hsh = {i: cap_hsh[n].count(i) for i in cap_hsh[n]}
+    #         tmp_lst = []
+    #         for i in tmp_hsh:
+    #             if tmp_hsh[i] > 1:
+    #                 tmp_lst.append(f'{i}({tmp_hsh[i]})')
+    #             else:
+    #                 tmp_lst.append(f"{i}")
+    #         cap_lst.append(f"{n}/[{', '.join(tmp_lst)}]")
 
-        output.append('')
-        output.append(wrap_format(f'Times captain/times scheduled: {", ".join(cap_lst)}'))
+    #     output.append('')
+    #     output.append(wrap_format(f'Times captain/times scheduled: {", ".join(cap_lst)}'))
 
-    output.append('')
+    # output.append('')
     output.append(wrap_format(schdatestr))
     output.append('')
 
-    output.append("""\
-* An entry such as 2/[7(3)] would mean that there were 3 occasions
-  in which i) a player was available 7 times when other players were
-  scheduled and ii) the player was unscheduled 2 of those 3 times.
-""")
+    # output.append("""\
+# * An entry such as 2/[7(3)] would mean that there were 3 occasions
+  # in which i) a player was available 7 times when other players were
+  # scheduled and ii) the player was unscheduled 2 of those 3 times.
+# """)
 
     schedule = "\n".join(output)
 
