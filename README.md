@@ -49,9 +49,6 @@ The current version of this program automates each of the steps in this process 
 
 	If necessary, a sub-directory called `projects` and a file called `roster.yaml` will be created in the home directory.
 
-	In the examples below, it is assumed that `~/plm` is the home directory.
-
-
 - invoking *plm* itself without any of the 'switches' gives something like
 
 		~ % plm
@@ -99,11 +96,11 @@ The current version of this program automates each of the steps in this process 
 
 ### 1. Create the project file
 
-Change the working directory to `plm`, if necessary, and invoke *plm* with the `-p`, create project, switch:
+Invoke *plm* with the `-p`, create project, switch:
 
         ~ % plm -p
 
-Then follow the on-line prompts to enter the project information. This information will be stored in a new file, `plm/projects/<project_name>.yaml`, where `<project_name>` is the name you provide for the project. A short name that sorts well and is suggestive is recommended, e.g., `2022-4Q-TU`.
+Then follow the on-line prompts to enter the project information. This information will be stored in a new file in the projects directory, `<project_name>.yaml`, where `<project_name>` is the name you provide for the project. A short name that sorts well and is suggestive is recommended, e.g., `2022-4Q-TU`.
 
 ### 2. Request players' availability dates
 
