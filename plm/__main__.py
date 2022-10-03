@@ -133,6 +133,7 @@ def main():
     plm.plm_version = plm_version
     plm.plm_projects = projects
     plm.plm_roster = roster
+    plm.plm_home = os.path.join('~', os.path.relpath(plmhome, os.path.expanduser('~')))
 
     plm.main()
 

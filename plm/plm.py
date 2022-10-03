@@ -30,14 +30,8 @@ import platform
 
 leadingzero = re.compile(r'(?<!(:|\d|-))0+(?=\d)')
 
-# oneday = timedelta(days=1)
-# oneminute = timedelta(minutes=1)
-# onehour = timedelta(hours=1)
-
 # for wrap_print
 COLUMNS, ROWS  = shutil.get_terminal_size()
-
-# WEEK_DAY = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 
 cwd = os.getcwd()
 
@@ -62,7 +56,6 @@ def openWithDefault(path):
         else:                                   # linux
             res = subprocess.run(('xdg-open', path), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        # res = subprocess.run([cmd, path], check=True)
         ret_code = res.returncode
         ok = ret_code == 0
         logger.debug(f"res: {res}; ret_code: {ret_code}")
@@ -98,27 +91,30 @@ def edit_project():
 def main():
 
     parser = argparse.ArgumentParser(
-            description=f"Player Lineup Manager",
-            prog='plm')
+            description="Player Lineup Manager",
+            epilog=f"home directory: {plm_home}",
+            prog='plm'
+            )
 
     parser.add_argument("-r", "--roster",
-            help="Open 'roster.yaml' using the default text editor to enter player names and email addresses", action="store_true")
+            help="Open 'roster.yaml' using the default text editor", action="store_true")
 
     parser.add_argument("-p", "--project",
-            help="Create a project (requires roster.yaml with names and email addresses of relevant players)", action="store_true")
+            help="Create a project", action="store_true")
 
     parser.add_argument("-q", "--query",
-            help="Query players for their 'can play' dates (requires existing project)", action="store_true")
+            help="Query players for their 'can play' dates", action="store_true")
 
     parser.add_argument("-e", "--enter",
-            help="Enter players' responses for their 'can play' dates (requires existing project)", action="store_true")
+            help="Enter players' responses for their 'can play' dates", action="store_true")
 
     parser.add_argument("-s", "--schedule",
-            help="Process player 'can play' responses to create the project schedule (requires that player responses have been recorded)", action="store_true")
+            help="Create project schedule using 'can play' responses", action="store_true")
 
     parser.add_argument("-d", "--deliver",
-            help="Deliver the completed schedule to the players (requires that project schedule has been processed)", action="store_true")
+            help="Deliver the completed schedule to the players", action="store_true")
 
+    # Not needed, maybe a little dangerous
     # parser.add_argument("-o", "--open",
     #         help="Open an existing project file using the default text editor. ", action="store_true")
 
@@ -160,14 +156,6 @@ def main():
         deliver_schedule()
         return
 
-    # if args.addresses:
-    #     copy_addresses()
-    #     return
-
-    # if args.email:
-    #     copy_email()
-    #     return
-
     if args.open:
         edit_project()
         return
@@ -203,13 +191,11 @@ def create_project():
     if not os.path.exists(plm_projects) or not os.path.isdir(plm_projects):
         problems.append(f"Either {plm_projects} does not exist or it is not a directory")
     if problems:
-        print(problems)
-        sys.exit()
+        # print(problems)
+        sys.exit(problems)
 
     with open(plm_roster, 'r') as fo:
         roster_data = yaml.load(fo)
-
-    # active_project = os.path.join(plm_projects, plm_active)
 
     tags = set([])
     players = {}
@@ -222,8 +208,10 @@ def create_project():
     player_tags = [tag for tag in players.keys()]
     tag_completer = FuzzyWordCompleter(player_tags)
 
+    ADDRESSES = {k: v for k, v in addresses.items()}
 
-    print(f"""
+
+    print(f"""\
     A name is required for the project. It will be used to create a file
     in the projects directory,
         {plm_projects}
@@ -231,109 +219,131 @@ def create_project():
     A short name that will sort in a useful way is suggested, e.g.,
     `2022-4Q-TU` for scheduling Tuesdays in the 4th quarter of 2022.\
     """)
-    project_name = session.prompt("project name: ").strip()
+    # get_project would require an existing project - this allows for
+    # creating a new project
+    possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
+    possible.sort()
+    completer = FuzzyWordCompleter(possible)
+    proj = prompt("project: ", completer=completer).strip()
+    if not proj:
+        sys.exit("canceled")
+
+
+    project_name = os.path.join(plm_projects, proj)
+
     project_file = os.path.join(plm_projects, os.path.splitext(project_name)[0] + '.yaml')
 
-    if not os.path.exists(project_file):
-        with open(project_file, 'a') as fo:
-            pass
-        print(f"created: {project_file}")
+    if os.path.exists(project_file):
+        print(f"using defaults from the existing: {project_file}")
+        ok = session.prompt(f"modify {project_file}: [Yn] ").strip()
+        if ok.lower() == 'n':
+            sys.exit("canceled")
+        # get defaults from existing project file
+        with open(project_file, 'r') as fo:
+            yaml_data = yaml.load(fo)
+
+        TITLE = yaml_data['TITLE']
+        TAG = yaml_data['PLAYER_TAG']
+        REPLY_BY = yaml_data['REPLY_BY']
+        REPEAT = yaml_data['REPEAT']
+        DAY = yaml_data['DAY']
+        BEGIN = yaml_data['BEGIN']
+        END = yaml_data['END']
+        RESPONSES = yaml_data['RESPONSES']
+        DATES = yaml_data['DATES']
+        NUM_PLAYERS = yaml_data['NUM_PLAYERS']
     else:
-        print(f"using the existing: {project_file}")
-        print("WARNING: THIS FILE WILL BE OVERWRITTEN ")
-        ok = session.prompt(f"overwrite {project_file}: [yN] ").strip()
-        if not ok.lower() == 'y':
-            print('cancelling')
-            sys.exit()
-
-    # responses_file = os.path.join(project, 'responses.yaml')
-    # letter_file = os.path.join(project, 'letter.txt')
-
-    print(f"""
-    A user friendly title is needed to use as the subject of emails sent
-    to players initially requesing their availability dates and subsequently
-    containing the schedules, e.g., `Tuesday Tennis 4th Quarter 2022`.""")
-
-    title = session.prompt("project title: ").strip()
+        # set defaults when there is no existing project file
+        TITLE = ""
+        TAG = ""
+        REPLY_BY = ""
+        REPEAT = 'y'
+        DAY = ""
+        BEGIN = ""
+        END = ""
+        DATES = ""
+        NUM_PLAYERS = ""
+        RESPONSES = {}
 
     print(f"""
-    The players for this project will be those that have the tag you specify
-    from {plm_roster}.
-    These tags are currently available: [{', '.join(player_tags)}].\
+A user friendly title is needed to use as the subject of emails sent
+to players initially requesing their availability dates and subsequently
+containing the schedules, e.g., `Tuesday Tennis 4th Quarter 2022`.""")
+
+    title = session.prompt("project title: ", default=TITLE).strip()
+    if not title:
+        sys.exit("canceled")
+
+    print(f"""
+The players for this project will be those that have the tag you specify
+from {plm_roster}.
+These tags are currently available: [{', '.join(player_tags)}].\
     """)
-    tag = session.prompt(f"player tag: ", completer=tag_completer, complete_while_typing=True)
+    tag = session.prompt(f"player tag: ", completer=tag_completer, complete_while_typing=True, default=TAG)
     while tag not in player_tags:
         print(f"'{tag}' is not in {', '.join(player_tags)}")
         print(f"Available player tags: {', '.join(player_tags)}")
         tag = session.prompt(f"player tag: ", completer=tag_completer, complete_while_typing=True)
 
-    print(f"Selected players with tag '{tag}':")
+
+    print(f"Selected players with the tag '{tag}':")
     for player in players[tag]:
         print(f"   {player}")
 
     emails = [v for k, v in addresses.items()]
 
     print(f"""
-    The letter sent to players asking for their availability dates will
-    request a reply by 6pm on the "reply by date" that you specify next.\
+The letter sent to players asking for their availability dates will
+request a reply by 6pm on the "reply by date" that you specify next.\
             """)
-    reply = session.prompt("reply by date: ", completer=None)
+    reply = session.prompt("reply by date: ", completer=None, default=REPLY_BY)
     rep_dt = parse(f"{reply} 6pm")
     print(f"reply by: {rep_dt}")
 
-
-
     print("""
-    If play repeats weekly on the same weekday, playing dates can given by
-    specifying the weekday and the beginning and ending dates. Otherwise,
-    dates can be specified individually.
+If play repeats weekly on the same weekday, playing dates can given by
+specifying the weekday and the beginning and ending dates. Otherwise,
+dates can be specified individually.
             """)
-    repeat = session.prompt("Repeat weekly: ", default='yes')
-    if repeat == 'yes':
-        day = int(session.prompt("The integer weekday (0: Mon, 1: Tue, 2: Wed, 3: Thu, 4: Fri, 5: Sat): "))
+    repeat = session.prompt("Repeat weekly: [Yn] ", default='y').lower().strip()
+    if repeat == 'y':
+        day = int(session.prompt("The integer weekday (0: Mon, 1: Tue, 2: Wed, 3: Thu, 4: Fri, 5: Sat): ", default=str(DAY)))
         # rrule objects for generating days
         weekday = {0: MO, 1: TU, 2: WE, 3: TH, 4: FR, 5: SA}
-        # Long weekday names for TITLE
+        # long weekday names for TITLE
         weekdays = {0: 'Monday', 1: 'Tuesday', 2: 'Wednesday', 3: 'Thursday', 4: 'Friday', 5: 'Saturday'}
         WEEK_DAY = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
         print(f"""
-    Play will be scheduled for {weekdays[day]}s falling on or after the
-    "beginning date" you specify next.""")
-        beginning = session.prompt("beginning date: ")
+Play will be scheduled for {weekdays[day]}s falling on or after the
+"beginning date" you specify next.""")
+        beginning = session.prompt("beginning date: ", default=str(BEGIN))
         beg_dt = parse(f"{beginning} 12am")
-        # print(f"beginning: {beg_dt}")
         print(f"""
-    Play will also be limited to {weekdays[day]}s falling on or before the
-    "ending date" you specify next.""")
-        ending = session.prompt("ending date: ")
+Play will also be limited to {weekdays[day]}s falling on or before the
+"ending date" you specify next.""")
+        ending = session.prompt("ending date: ", default=str(END))
         end_dt = parse(f"{ending} 11:59pm")
-        # print(f"ending: {end_dt}")
         days = list(rrule(WEEKLY, byweekday=weekday[day], dtstart=beg_dt, until=end_dt))
     else:
+        day = ""
         print("""
-    Playing dates separated by commas using year/month/day format. The current
-    year is assumed if omitted.
+Playing dates separated by commas using 'MM/DD/YY' format. The current
+year is assumed if '/YY' is omitted.
     """)
-        dates = session.prompt("Dates: ")
+        dates = session.prompt("Dates: ", default=", ".join(DATES))
         days = [parse(f"{x} 12am") for x in dates.split(',')]
+        days.sort()
 
-    numcourts = session.prompt("number of courts (0 for unlimited, else allowed number): ", default="0")
-    numplayers = session.prompt("number of players (2 for singles, 4 for doubles): ", default="4")
-
-
+    reply_formatted = reply.format('YYYY-MM-DD')
     beginning_datetime = pendulum.instance(days[0])
-    # print(f"beginning_datetime: {beginning_datetime}")
-    beginning_formatted = beginning_datetime.format('YY-MM-DD')
+    beginning_formatted = beginning_datetime.format('YYYY-MM-DD')
     ending_datetime = pendulum.instance(days[-1])
-    # print(f"ending_datetime: {ending_datetime}")
-    ending_formatted = ending_datetime.format('YY-MM-DD')
-
-    # title = f"{weekdays[day]} Tennis for {beginning_formatted} through {ending_formatted}"
-
-    # dates will be in m/d format, e.g., 12/20, 12/27, 1/3 so only works for less than a year
+    ending_formatted = ending_datetime.format('YYYY-MM-DD')
 
     dates = ", ".join([f"{x.month}/{x.day}" for x in days])
     DATES = [x.strip() for x in dates.split(",")]
+    numcourts = session.prompt("number of courts (0 for unlimited, else allowed number): ", default="0")
+    numplayers = session.prompt("number of players (2 for singles, 4 for doubles): ", default="4")
 
     rep_dt = pendulum.instance(parse(f"{reply} 6pm"))
     rep_date = rep_dt.format("hA on dddd, MMMM D")
@@ -345,12 +355,15 @@ def create_project():
 
     tmpl = f"""# created by plm -p
 TITLE: {title}
-NUM_COURTS: {numcourts}
-NUM_PLAYERS: {numplayers}
-BEGIN: {beginning_formatted}
+PLAYER_TAG: {tag}
+REPLY_BY: {reply_formatted}
+REPEAT: {repeat}
 DAY: {day}
+BEGIN: {beginning_formatted}
 END: {ending_formatted}
 DATES: [{dates}]
+NUM_COURTS: {numcourts}
+NUM_PLAYERS: {numplayers}
 
 # The names used as the keys in RESPONSES below were
 # obtained from the file '{plm_roster}'.
@@ -395,8 +408,9 @@ REQUEST: |
     response_rows = []
     email_rows = []
     for player in players[tag]:
-        response_rows.append(f"{player}: nr\n")
-        email_rows.append(f"{player}: {addresses[player]}\n")
+        response = RESPONSES[player] if player in RESPONSES else "nr"
+        response_rows.append(f"{player}: {response}\n")
+        email_rows.append(f"{player}: {ADDRESSES[player]}\n")
 
     if not os.path.exists(project_file) or session.prompt(f"'./{os.path.relpath(project_file, cwd)}' exists. Overwrite: ", default="yes").lower() == "yes":
         with open(project_file, 'w') as fo:
@@ -413,7 +427,55 @@ REQUEST: |
         print("Overwrite cancelled")
 
 
+# update addresses and responses in project with the current entries in roster.yaml
+
+# def update_project():
+#     """
+#     Using the player 'tag' from the project file, add any new players
+#     with the same tag from (an updated) roster.yaml to the project
+#     ADDRESSES and RESPONSES.
+#     Also update email addresses for existing project players if necessary.
+#     Note that if a player's name has been changed in roster.yaml but will
+#     still be included in the project because of the tag, then that player
+#     will be added to the project as if a new player. Manual changes to the
+#     project file
+#     """
+#     if not os.path.exists(plm_roster):
+#         problems.append(f"Could not find {plm_roster}")
+#     if not os.path.exists(plm_projects) or not os.path.isdir(plm_projects):
+#         problems.append(f"Either {plm_projects} does not exist or it is not a directory")
+#     if problems:
+#         print(problems)
+#         sys.exit()
+
+#     with open(plm_roster, 'r') as fo:
+#         roster_data = yaml.load(fo)
+
+#     project = get_project()
+#     if not project:
+#         print("Cancelled")
+#         return
+#     with open(project) as fo:
+#         yaml_data = yaml.load(fo)
+
+#     addresses = yaml_data['ADDRESSES']
+#     responses = yaml_data['RESPONSES']
+
+#     players = {}
+#     addresses = {}
+#     for player, values in roster_data.items():
+#         if not tag in values:
+#             continue
+#         addresses[player] = values[0]
+#         for tag in values[1:]:
+#             players.setdefault(tag, []).append(player)
+#             tags.add(tag)
+#     player_tags = [tag for tag in players.keys()]
+
+
+
 def format_name(name):
+    # used to get 'fname lname' from 'lname, fname' for the schedule
     lname, fname = name.split(', ')
     return f"{fname} {lname}"
 
@@ -489,6 +551,7 @@ def create_schedule():
     addresses = yaml_data['ADDRESSES']
     DATES = yaml_data['DATES']
     NUM_PLAYERS = yaml_data['NUM_PLAYERS']
+    TAG = yaml_data['PLAYER_TAG']
 
     RESPONSES = {format_name(k): v for k, v in responses.items()}
     ADDRESSES = {format_name(k): v for k, v in addresses.items()}
@@ -858,7 +921,7 @@ dates on which a court is scheduled have asterisks.
     yaml_data['SCHEDULE'] = schedule
 
     with open(proj_path, 'w') as fn:
-        # yaml.default_flow_style = False
+        yaml.default_flow_style = False
         yaml.indent(mapping=2, sequence=4, offset=2)
         yaml.dump(yaml_data, fn)
         print(f"Schedule saved to {proj_path}")
@@ -1047,12 +1110,13 @@ dates:
 
     if changes:
         print(f"Changes:\n{changes}")
-        ok = prompt("Save changes: [Yn] ", default='y').strip().lower()
-        if ok == 'y':
-            with open(project, 'w') as fn:
-                # yaml.default_flow_style = False
-                yaml.indent(mapping=2, sequence=4, offset=2)
-                yaml.dump(yaml_data, fn)
+        ok = prompt("Save changes: [Yn] ").strip()
+        if ok.lower() == 'n':
+            sys.exit("changes discarded")
+        with open(project, 'w') as fn:
+            yaml.default_flow_style = False
+            yaml.indent(mapping=2, sequence=4, offset=2)
+            yaml.dump(yaml_data, fn)
     else:
         print("no changes to save")
 
