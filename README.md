@@ -3,19 +3,19 @@
 
 ### History
 
-Some variant of *plm* has been used since 2014 to schedule tennis doubles matches for a group of around 30 tennis players. Play still occurs weekly on Tuesdays using as many courts as necessary and the schedules are made for a three months (one quarter) at a time. More recently, smaller Monday and Friday groups have been added each using at most one court. The process involves these steps.
+Some variant of *plm* has been used privately since 2014 to schedule tennis doubles matches for a group of around 30 tennis players. Play for this group occurs weekly on Tuesdays using as many courts as necessary and the schedules are made for three months (one quarter) at a time. More recently, smaller Monday and Friday groups have been added each using at most one court. The process involves these steps.
 
-- Obtain a list of the dates that each player can play.
+- Obtain from each player a list of the dates that the player can play.
 - Randomly sort available players for each date into groups of four taking account of previous pairings.
 - From each group, randomly select a 'captain' taking account of previous selections.
 - Produce a "user friendly" version of the schedule organized both by date and by player.
 - Send the completed schedule to each player.
 
-The current version of this program automates each of the steps in this process and allows some flexibility in scheduling dates, indicating a willingness to be a substitute, specifying the number of players per court (doubles or singles), and so forth. A further change is that all information relevant to a project is now stored in a single, project file in *yaml* format with players's responses listing the dates that the player *can* play rather than the dates the player *cannot* play. A final change is that *plm* is now available both from *PyPi*, [plm-dgraham](https://pypi.org/project/plm-dgraham/), and from *GitHub*, [dagraham/plm-dgraham](https://github.com/dagraham/plm-dgraham).
+The current version of this program automates each of the steps in this process and allows some flexibility in scheduling dates, indicating a willingness to be a possible substitute, specifying the number of players per court (doubles or singles), and so forth. A further change is that all information relevant to a project is now stored in a single, project file in *yaml* format with players's responses listing the dates that the player *can* play rather than the dates the player *cannot* play. A final change is that *plm* is now publically available both from *PyPi*, [plm-dgraham](https://pypi.org/project/plm-dgraham/), and from *GitHub*, [dagraham/plm-dgraham](https://github.com/dagraham/plm-dgraham).
 
 ### Requirements
 
-The program requires `python3` which must be installed on your system. To check this open a terminal window and execute the following.
+This program requires `python3` which must be installed on your system. To check for this requirement, open a terminal window and execute:
 
 		~ % which python3
 
@@ -45,32 +45,37 @@ This will install *plm* and any needed supporting python modules. This same proc
 
 	- If the current working directory contains a file 'roster.yaml' and a directory 'projects', then it will be used as the *home directory*.
 	- Otherwise if the environmental variable 'plmHOME' is set and points to a directory, then that directory will be used as the *home directory*.
-	- Otherwise `~/plm` will be used as the *home directory* and, with your confirmation, created if necessary.
+	- Otherwise `~/plm` will be used as the *home directory* and, with your confirmation, created if it does not already exist.
 
 	A sub-directory called `projects` and a file called `roster.yaml` will be created in the *home directory* if they do not already exist
 
-- Invoking *plm* itself without any of the 'switches' gives something like
+- Invoking *plm* gives something like
 
 		~ % plm
-		usage: plm [-h] [-r] [-p] [-q] [-e] [-s] [-d] [-v]
+        Player Lineup Manager (0.1.7)
+        home directory: ~/plm
 
-		Player Lineup Manager
+        commands:
+            h:  show this help message
+            e:  edit 'roster.yaml' using the default text editor
+            p:  create/update a project
+            a:  ask players for their "can play" dates
+            r:  record the "can play" responses
+            s:  schedule play using the "can play" responses
+            d:  deliver the schedule to the players
+            v:  check for an update to a later plm version
+            q:  quit
 
-		options:
-		-h, --help      show this help message and exit
-		-r, --roster    Open 'roster.yaml' using the default text editor
-		-p, --project   Create a project
-		-q, --query     Query players for their 'can play' dates
-		-e, --enter     Enter players' responses for their 'can play' dates
-		-s, --schedule  Create project schedule using 'can play' responses
-		-d, --deliver   Deliver the completed schedule to the players
-		-v, --version   check for an update to a later plm version
+        command:
 
-		home directory: ~/plm
+    This begins a loop in which *plm* waits for you to enter a command at the prompt, processes the command and, unless the command is *q* (quit), waits for your next command.
 
-- You can now open `roster.yaml` in your favorite editor or invoke
+    Note: the commands *p*, *a*, *r*, *s* and *d* begin with a request that you select the relevant project. Tab completion is available and, once a selection is made, this project becomes the *active project* and default for any further use of the commands in this group while the command loop continues.
 
-        ~ % plm -r
+
+- You can now open `roster.yaml` in your favorite editor or use command *e*:
+
+        command: e
 
     to have *plm* open the file for you. Each line in the roster file should have the format
 
@@ -94,45 +99,45 @@ This will install *plm* and any needed supporting python modules. This same proc
 
 #### 1. Create the project file
 
-Invoke *plm* with the `-p`, create project, switch:
+Start *plm*, if necessary, and use the *project* command:
 
-        ~ % plm -p
+        command: p
 
 Then follow the on-line prompts to enter the project information. This information will be stored in a new file in the projects directory, `<project_name>.yaml`, where `<project_name>` is the name you provide for the project. A short name that sorts well and is suggestive is recommended, e.g., `2022-4Q-TU`.
 
 
 #### 2. Request players' availability dates
 
-With the project file created, the next step is to request the "can play" dates from the players. To do this, invoke *plm* with the `-q`, query players, switch:
+With the project file created, the next step is to request the "can play" dates from the players. To do this start *plm*, if necessary, and use the *ask* command:
 
-        ~ % plm -q
+        command: a
 
 You will be advised to open your favorite email application and create a new, empty email. You will then be prompted to select the relevant project. Tab completion is available to choose the project you created in the previous step. When you have selected the project, you will then be advised that the relevant email addresses have been copied to the system clipboard. Paste these into the "To" section of your new email and then press *return* in *plm* to continue. You will next be advised that the relevant subject has been copied to the system clipboard. Paste this into the "Subject" section of your email and again press *return* in *plm* to continue. You will finally be advised that the body of the request email has been copied to the system clipboard for you to paste into your email. When you are satisfied with the result, you can send the completed email.
 
 
 #### 3. Enter player "can play" responses
 
-As you receive responses, you can invoke *plm* with the `-e`, enter responses, switch to record them:
+As you receive responses, you can start *plm*, if necessary, and use the *record* command:
 
-        ~ % plm -e
+        command: r
 
 Again you will be prompted to choose the relevant project with tab completion available. This begins a loop in which you can choose a player using tab completion and then enter the player's response to the "can play" dates query. The response for a player can be 'all', 'none', 'nr' (no response) or a comma separated list of dates using the month/day format. Asterisks can be appended to dates in which the player wants to be listed as a sub, e.g., '10/4, 10/18*, 10/25' for can play on 10/4 or 10/25 and might be able to subsitute on 10/18. This process continues until you enter a 'q' to end the loop and, if changes have been made, indicate whether or not you would like to save them. This entry process can be repeated as often as you like until you are satisfied that all responses have been correctly entered.
 
 
 #### 4. Process responses to create the schedule
 
-Invoke *plm* with the `-s`, schedule, switch after all player responses have been received and recorded.
+Start *plm*, if necessary, and use the *schedule* command when you are satisfied that all player responses have been received and recorded.
 
-        ~ % plm -s
+        command: s
 
-Again, you will be prompted to choose the relevant project using tab completion. The schedule will be processed and added to the project file with no need for further input.
+Again, you will be prompted to choose the relevant project using tab completion. The schedule will be processed and added to the project file without further input.
 
 
 #### 5. Deliver the completed schedule to the players
 
-This step involves invoking *plm* with the `-d`, deliver, switch.
+This step involves the *deliver* command.
 
-        ~ % plm -d
+        command: d
 
 As with the process for requesting "can play" dates, this prompts for the relevant project and then successively copies 1) the email addresses, 2) the subject and 3) the schedule itself to the system clipboard so that each can be pasted in turn into an email to be sent to the relevant players.
 
@@ -142,10 +147,10 @@ You might want to add a player to a project you've already created, update the e
 
         ~ % plm -r
 
-When adding new players or modifying the email addresses of existing players, the changes will be incorporated into an existing project in the next step. Changing the *name* of an existing player, however, will effectively delete the original player and add the new player in the next step. Any "can play" response you might have recorded under the original name would be lost in this process.
+When adding new players or modifying the email addresses of existing players, the changes will be incorporated into an existing project in the next step. Any responses that have been recorded for existing players will be preserved in the next step. Changing the *name* of an existing player, however, will effectively delete the original player and add the new player in the next step. Any "can play" response you might have recorded in the project under the original name would be lost in this case.
 
-When you've finished updating `roster.yaml`, invoke *create project* with the `-p` switch
+When you've finished updating `roster.yaml`, the next step is to invoke *plm* with the *project* option
 
         ~ % plm -p
 
-and select (using tab completion) the project you want to update. You will be prompted for the same information as when you first created the project, but this time your previous responses will be the defaults. In each case, you can simply press *enter* to accept the default or make any changes you like and then press *enter* to record the changes.
+and select (using tab completion) the project you want to update. You will be prompted for the same information you entered when you first created the project, but this time your previous responses will be the defaults. With each prompt, you can simply press *enter* to accept your original entry or make any changes you like and then press *enter* to update the entry. When you have finished with each of the prompts, you will be asked for a final confirmation before modifying the original project file. As noted above, any "can play" responses that had previously been recorded in the project will be preserved for players whose names have not been changed.

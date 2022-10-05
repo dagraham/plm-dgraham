@@ -67,11 +67,11 @@ def openWithDefault(path):
     return
 
 
-def get_project():
+def get_project(active_project=""):
     possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
     possible.sort()
     completer = FuzzyWordCompleter(possible)
-    proj = prompt("project: ", completer=completer).strip()
+    proj = prompt("project: ", completer=completer, default=active_project).strip()
     project = os.path.join(plm_projects, proj)
     if os.path.isfile(project):
         return project
@@ -83,12 +83,75 @@ def edit_roster():
     openWithDefault(plm_roster)
 
 
-def edit_project():
-    project = get_project()
+def open_project(active_project=""):
+    project = get_project(active_project)
     if project:
         openWithDefault(project)
 
 def main():
+
+    commands = """
+commands:
+    h:  show this help message
+    e:  edit 'roster.yaml' using the default text editor
+    p:  create/update a project
+    a:  ask players for their "can play" dates
+    r:  record the "can play" responses
+    s:  schedule play using the "can play" responses
+    d:  deliver the schedule to the players
+    v:  check for an update to a later plm version
+    q:  quit
+"""
+
+    help = f"""\
+Player Lineup Manager ({plm_version})
+home directory: {plm_home}
+{commands}
+"""
+
+    print(help)
+    active_project = ""
+    try:
+        again = True
+        while again:
+            answer = input("command: ").strip()
+            if answer not in 'heparsdovq':
+                print(f"invalid command: '{answer}'")
+                print(commands)
+            elif answer == 'h':
+                print(help)
+            elif answer == 'v':
+                res = check_update()
+                print(res)
+            elif answer == 'q':
+                again = False
+                print(" quitting ...")
+            else:
+                if answer == 'e':
+                    edit_roster()
+                elif answer == 'o':
+                    active_project = open_project(active_project)
+                elif answer == 'p':
+                    active_project = create_project(active_project)
+                elif answer == 'a':
+                    active_project = ask_players(active_project)
+                elif answer == 'r':
+                    active_project = record_responses(active_project)
+                elif answer == 's':
+                    active_project = create_schedule(active_project)
+                elif answer == 'd':
+                    active_project = deliver_schedule(active_project)
+                print(commands)
+                if active_project:
+                    print(f"active_project: {active_project}")
+
+    except KeyboardInterrupt:
+        play = False
+        print(" quitting ...")
+
+
+
+def argparse_main():
 
     parser = argparse.ArgumentParser(
             description="Player Lineup Manager",
@@ -97,22 +160,22 @@ def main():
             )
 
     parser.add_argument("-r", "--roster",
-            help="Open 'roster.yaml' using the default text editor", action="store_true")
+            help="open 'roster.yaml' using the default text editor", action="store_true")
 
     parser.add_argument("-p", "--project",
-            help="Create a project", action="store_true")
+            help="create/update a project", action="store_true")
 
     parser.add_argument("-q", "--query",
-            help="Query players for their 'can play' dates", action="store_true")
+            help="query players for their 'can play' dates", action="store_true")
 
     parser.add_argument("-e", "--enter",
-            help="Enter players' responses for their 'can play' dates", action="store_true")
+            help="enter 'can play' responses", action="store_true")
 
     parser.add_argument("-s", "--schedule",
-            help="Create project schedule using 'can play' responses", action="store_true")
+            help="create a schedule for the project", action="store_true")
 
     parser.add_argument("-d", "--deliver",
-            help="Deliver the completed schedule to the players", action="store_true")
+            help="deliver the schedule to the players", action="store_true")
 
     # Not needed, maybe a little dangerous
     # parser.add_argument("-o", "--open",
@@ -141,11 +204,11 @@ def main():
         return
 
     if args.query:
-        query_players()
+        ask_players()
         return
 
     if args.enter:
-        enter_responses()
+        record_responses()
         return
 
     if args.schedule:
@@ -157,7 +220,7 @@ def main():
         return
 
     if args.open:
-        edit_project()
+        open_project()
         return
 
 
@@ -182,7 +245,7 @@ def check_update():
     return res
 
 
-def create_project():
+def create_project(active_project=""):
     # Create prompt object.
     session = PromptSession()
     problems = []
@@ -224,9 +287,10 @@ def create_project():
     possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
     possible.sort()
     completer = FuzzyWordCompleter(possible)
-    proj = prompt("project: ", completer=completer).strip()
+    proj = prompt("project: ", completer=completer, default=active_project).strip()
     if not proj:
         sys.exit("canceled")
+    active_project = proj
 
 
     project_name = os.path.join(plm_projects, proj)
@@ -296,7 +360,7 @@ These tags are currently available: [{', '.join(player_tags)}].\
 The letter sent to players asking for their availability dates will
 request a reply by 6pm on the "reply by date" that you specify next.\
             """)
-    reply = session.prompt("reply by date: ", completer=None, default=REPLY_BY)
+    reply = session.prompt("reply by date: ", completer=None, default=str(REPLY_BY))
     rep_dt = parse(f"{reply} 6pm")
     print(f"reply by: {rep_dt}")
 
@@ -318,11 +382,13 @@ Play will be scheduled for {weekdays[day]}s falling on or after the
 "beginning date" you specify next.""")
         beginning = session.prompt("beginning date: ", default=str(BEGIN))
         beg_dt = parse(f"{beginning} 12am")
+        print(f"beginning: {beg_dt}")
         print(f"""
 Play will also be limited to {weekdays[day]}s falling on or before the
 "ending date" you specify next.""")
         ending = session.prompt("ending date: ", default=str(END))
         end_dt = parse(f"{ending} 11:59pm")
+        print(f"ending: {end_dt}")
         days = list(rrule(WEEKLY, byweekday=weekday[day], dtstart=beg_dt, until=end_dt))
     else:
         day = ""
@@ -334,7 +400,7 @@ year is assumed if '/YY' is omitted.
         days = [parse(f"{x} 12am") for x in dates.split(',')]
         days.sort()
 
-    reply_formatted = reply.format('YYYY-MM-DD')
+    reply_formatted = pendulum.instance(rep_dt).format('YYYY-MM-DD')
     beginning_datetime = pendulum.instance(days[0])
     beginning_formatted = beginning_datetime.format('YYYY-MM-DD')
     ending_datetime = pendulum.instance(days[-1])
@@ -426,52 +492,7 @@ REQUEST: |
     else:
         print("Overwrite cancelled")
 
-
-# update addresses and responses in project with the current entries in roster.yaml
-
-# def update_project():
-#     """
-#     Using the player 'tag' from the project file, add any new players
-#     with the same tag from (an updated) roster.yaml to the project
-#     ADDRESSES and RESPONSES.
-#     Also update email addresses for existing project players if necessary.
-#     Note that if a player's name has been changed in roster.yaml but will
-#     still be included in the project because of the tag, then that player
-#     will be added to the project as if a new player. Manual changes to the
-#     project file
-#     """
-#     if not os.path.exists(plm_roster):
-#         problems.append(f"Could not find {plm_roster}")
-#     if not os.path.exists(plm_projects) or not os.path.isdir(plm_projects):
-#         problems.append(f"Either {plm_projects} does not exist or it is not a directory")
-#     if problems:
-#         print(problems)
-#         sys.exit()
-
-#     with open(plm_roster, 'r') as fo:
-#         roster_data = yaml.load(fo)
-
-#     project = get_project()
-#     if not project:
-#         print("Cancelled")
-#         return
-#     with open(project) as fo:
-#         yaml_data = yaml.load(fo)
-
-#     addresses = yaml_data['ADDRESSES']
-#     responses = yaml_data['RESPONSES']
-
-#     players = {}
-#     addresses = {}
-#     for player, values in roster_data.items():
-#         if not tag in values:
-#             continue
-#         addresses[player] = values[0]
-#         for tag in values[1:]:
-#             players.setdefault(tag, []).append(player)
-#             tags.add(tag)
-#     player_tags = [tag for tag in players.keys()]
-
+    return active_project
 
 
 def format_name(name):
@@ -504,7 +525,7 @@ def select(freq = {}, chosen=[], remaining=[], numplayers=4):
     return freq, chosen, remaining
 
 
-def create_schedule():
+def create_schedule(active_project=""):
     possible = {}
     available = {}
     availabledates = {}
@@ -530,10 +551,11 @@ def create_schedule():
     project_hsh = {}
     courts_scheduled = {}
     session = PromptSession()
-    proj_path = get_project()
+    proj_path = get_project(active_project)
     if not proj_path:
         print("Cancelled")
         return
+    active_project = os.path.split(proj_path)[1]
 
     # possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
 
@@ -926,8 +948,10 @@ dates on which a court is scheduled have asterisks.
         yaml.dump(yaml_data, fn)
         print(f"Schedule saved to {proj_path}")
 
+    return active_project
 
-def query_players():
+
+def ask_players(active_project=""):
     print("""
 This will help you prepare an email to request cannot play dates
 from the relevant players. You will need to open your favorite
@@ -935,10 +959,11 @@ email application, create a new email and be ready to paste
 (1) the addresses, (2) the subject and (3) the body into the email.
 """)
     print("The first step is to select the project.")
-    project = get_project()
+    project = get_project(active_project)
     if not project:
         print("Cancelled")
         return
+    active_project = os.path.split(project)[1]
     with open(project) as fo:
         yaml_data = yaml.load(fo)
 
@@ -976,8 +1001,9 @@ The request has been copied to the system clipboard. When you
 have pasted it into the "body" section of your email, your email
 should be ready to send.
 """)
+    return active_project
 
-def deliver_schedule():
+def deliver_schedule(active_project=""):
     print("""
 This will help you prepare an email to send the completed schedule
 for a project to the relevant players. You will need to open your
@@ -986,10 +1012,11 @@ favorite email application, create a new email and be ready to paste
 """)
 
     print("The first step is to select the project.")
-    project = get_project()
+    project = get_project(active_project)
     if not project:
         print("Cancelled")
-        return
+        return active_project
+    active_project = os.path.split(project)[1]
     with open(project) as fo:
         yaml_data = yaml.load(fo)
 
@@ -1006,7 +1033,7 @@ section of your email, press <return> to continue to the next step.
 
     if not ok == 'yes':
         print("Cancelled")
-        return
+        return active_project
 
     # projname = os.path.splitext(os.path.split(project)[1])[0]
     title = yaml_data['TITLE']
@@ -1028,12 +1055,13 @@ have pasted it into the "body" section of your email your email
 should be ready to send.
 """)
 
-def enter_responses():
+def record_responses(active_project=""):
 
-    project = get_project()
+    project = get_project(active_project)
     if not project:
         print("Cancelled")
-        return
+        return active_project
+    active_project = os.path.split(project)[1]
     with open(project) as fo:
         yaml_data = yaml.load(fo)
 
@@ -1119,6 +1147,7 @@ dates:
             yaml.dump(yaml_data, fn)
     else:
         print("no changes to save")
+    return active_project
 
 
 
