@@ -67,11 +67,11 @@ def openWithDefault(path):
     return
 
 
-def get_project(active_project=""):
+def get_project(default_project=""):
     possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
     possible.sort()
     completer = FuzzyWordCompleter(possible)
-    proj = prompt("project: ", completer=completer, default=active_project).strip()
+    proj = prompt("project: ", completer=completer, default=default_project).strip()
     project = os.path.join(plm_projects, proj)
     if os.path.isfile(project):
         return project
@@ -83,8 +83,8 @@ def edit_roster():
     openWithDefault(plm_roster)
 
 
-def open_project(active_project=""):
-    project = get_project(active_project)
+def open_project(default_project=""):
+    project = get_project(default_project)
     if project:
         openWithDefault(project)
 
@@ -94,6 +94,7 @@ def main():
 commands:
     h:  show this help message
     e:  edit 'roster.yaml' using the default text editor
+    t:  tag an existing project as the default for subsequent commands
     p:  create/update a project
     a:  ask players for their "can play" dates
     r:  record the "can play" responses
@@ -110,12 +111,12 @@ home directory: {plm_home}
 """
 
     print(help)
-    active_project = ""
+    default_project = ""
     try:
         again = True
         while again:
             answer = input("command: ").strip()
-            if answer not in 'heparsdovq':
+            if answer not in 'hetparsdovq':
                 print(f"invalid command: '{answer}'")
                 print(commands)
             elif answer == 'h':
@@ -130,20 +131,22 @@ home directory: {plm_home}
                 if answer == 'e':
                     edit_roster()
                 elif answer == 'o':
-                    active_project = open_project(active_project)
+                    default_project = open_project(default_project)
+                elif answer == 't':
+                    default_project = tag_project(default_project)
                 elif answer == 'p':
-                    active_project = create_project(active_project)
+                    default_project = create_project(default_project)
                 elif answer == 'a':
-                    active_project = ask_players(active_project)
+                    default_project = ask_players(default_project)
                 elif answer == 'r':
-                    active_project = record_responses(active_project)
+                    default_project = record_responses(default_project)
                 elif answer == 's':
-                    active_project = create_schedule(active_project)
+                    default_project = create_schedule(default_project)
                 elif answer == 'd':
-                    active_project = deliver_schedule(active_project)
+                    default_project = deliver_schedule(default_project)
                 print(commands)
-                if active_project:
-                    print(f"active_project: {active_project}")
+                if default_project:
+                    print(f"default project: {default_project}")
 
     except KeyboardInterrupt:
         play = False
@@ -244,8 +247,16 @@ def check_update():
 
     return res
 
+def tag_project(default_project=""):
 
-def create_project(active_project=""):
+    print("Select an existing project to be tagged as the default project.")
+    project = get_project()
+    if not project:
+        print("Cancelled")
+        return default_project
+    return os.path.split(project)[1]
+
+def create_project(default_project=""):
     # Create prompt object.
     session = PromptSession()
     problems = []
@@ -287,10 +298,10 @@ def create_project(active_project=""):
     possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
     possible.sort()
     completer = FuzzyWordCompleter(possible)
-    proj = prompt("project: ", completer=completer, default=active_project).strip()
+    proj = prompt("project: ", completer=completer, default=default_project).strip()
     if not proj:
         sys.exit("canceled")
-    active_project = proj
+    default_project = proj
 
 
     project_name = os.path.join(plm_projects, proj)
@@ -492,7 +503,7 @@ REQUEST: |
     else:
         print("Overwrite cancelled")
 
-    return active_project
+    return default_project
 
 
 def format_name(name):
@@ -525,7 +536,7 @@ def select(freq = {}, chosen=[], remaining=[], numplayers=4):
     return freq, chosen, remaining
 
 
-def create_schedule(active_project=""):
+def create_schedule(default_project=""):
     possible = {}
     available = {}
     availabledates = {}
@@ -551,11 +562,11 @@ def create_schedule(active_project=""):
     project_hsh = {}
     courts_scheduled = {}
     session = PromptSession()
-    proj_path = get_project(active_project)
+    proj_path = get_project(default_project)
     if not proj_path:
         print("Cancelled")
         return
-    active_project = os.path.split(proj_path)[1]
+    default_project = os.path.split(proj_path)[1]
 
     # possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
 
@@ -948,10 +959,10 @@ dates on which a court is scheduled have asterisks.
         yaml.dump(yaml_data, fn)
         print(f"Schedule saved to {proj_path}")
 
-    return active_project
+    return default_project
 
 
-def ask_players(active_project=""):
+def ask_players(default_project=""):
     print("""
 This will help you prepare an email to request cannot play dates
 from the relevant players. You will need to open your favorite
@@ -959,11 +970,11 @@ email application, create a new email and be ready to paste
 (1) the addresses, (2) the subject and (3) the body into the email.
 """)
     print("The first step is to select the project.")
-    project = get_project(active_project)
+    project = get_project(default_project)
     if not project:
         print("Cancelled")
         return
-    active_project = os.path.split(project)[1]
+    default_project = os.path.split(project)[1]
     with open(project) as fo:
         yaml_data = yaml.load(fo)
 
@@ -1001,9 +1012,9 @@ The request has been copied to the system clipboard. When you
 have pasted it into the "body" section of your email, your email
 should be ready to send.
 """)
-    return active_project
+    return default_project
 
-def deliver_schedule(active_project=""):
+def deliver_schedule(default_project=""):
     print("""
 This will help you prepare an email to send the completed schedule
 for a project to the relevant players. You will need to open your
@@ -1012,11 +1023,11 @@ favorite email application, create a new email and be ready to paste
 """)
 
     print("The first step is to select the project.")
-    project = get_project(active_project)
+    project = get_project(default_project)
     if not project:
         print("Cancelled")
-        return active_project
-    active_project = os.path.split(project)[1]
+        return default_project
+    default_project = os.path.split(project)[1]
     with open(project) as fo:
         yaml_data = yaml.load(fo)
 
@@ -1033,7 +1044,7 @@ section of your email, press <return> to continue to the next step.
 
     if not ok == 'yes':
         print("Cancelled")
-        return active_project
+        return default_project
 
     # projname = os.path.splitext(os.path.split(project)[1])[0]
     title = yaml_data['TITLE']
@@ -1055,13 +1066,13 @@ have pasted it into the "body" section of your email your email
 should be ready to send.
 """)
 
-def record_responses(active_project=""):
+def record_responses(default_project=""):
 
-    project = get_project(active_project)
+    project = get_project(default_project)
     if not project:
         print("Cancelled")
-        return active_project
-    active_project = os.path.split(project)[1]
+        return default_project
+    default_project = os.path.split(project)[1]
     with open(project) as fo:
         yaml_data = yaml.load(fo)
 
@@ -1147,7 +1158,7 @@ dates:
             yaml.dump(yaml_data, fn)
     else:
         print("no changes to save")
-    return active_project
+    return default_project
 
 
 

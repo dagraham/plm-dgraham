@@ -58,6 +58,7 @@ This will install *plm* and any needed supporting python modules. This same proc
         commands:
             h:  show this help message
             e:  edit 'roster.yaml' using the default text editor
+            t:  tag an existing project as the default for subsequent commands
             p:  create/update a project
             a:  ask players for their "can play" dates
             r:  record the "can play" responses
@@ -70,7 +71,7 @@ This will install *plm* and any needed supporting python modules. This same proc
 
     This begins a loop in which *plm* waits for you to enter a command at the prompt, processes the command and, unless the command is *q* (quit), waits for your next command.
 
-    Note: the commands *p*, *a*, *r*, *s* and *d* begin with a request that you select the relevant project. Tab completion is available and, once a selection is made, this project becomes the *active project* and default for any further use of the commands in this group while the command loop continues.
+    Note: the commands *t*, *p*, *a*, *r*, *s* and *d* begin with a request that you select the relevant project. Tab completion is available and, once a selection is made, this project becomes the *default project* for any further use of the commands in this group while the command loop continues.
 
 
 - You can now open `roster.yaml` in your favorite editor or use command *e*:
