@@ -146,12 +146,12 @@ As with the process for requesting "can play" dates, this prompts for the releva
 
 You might want to add a player to a project you've already created, update the email address of an existing player or make some other change to an existing project. To do this, first make the needed changes to `roster.yaml` using
 
-        ~ % plm -r
+        command: e
 
 When adding new players or modifying the email addresses of existing players, the changes will be incorporated into an existing project in the next step. Any responses that have been recorded for existing players will be preserved in the next step. Changing the *name* of an existing player, however, will effectively delete the original player and add the new player in the next step. Any "can play" response you might have recorded in the project under the original name would be lost in this case.
 
-When you've finished updating `roster.yaml`, the next step is to invoke *plm* with the *project* option
+When you've finished updating `roster.yaml`, the next step is to use the  *project* command
 
-        ~ % plm -p
+        command: p
 
-and select (using tab completion) the project you want to update. You will be prompted for the same information you entered when you first created the project, but this time your previous responses will be the defaults. With each prompt, you can simply press *enter* to accept your original entry or make any changes you like and then press *enter* to update the entry. When you have finished with each of the prompts, you will be asked for a final confirmation before modifying the original project file. As noted above, any "can play" responses that had previously been recorded in the project will be preserved for players whose names have not been changed.
+You will be prompted for the same information you entered when you first created the project, but this time your previous responses will be the defaults. With each prompt, you can simply press *enter* to accept your original entry or make any changes you like and then press *enter* to update the entry. When you have finished with each of the prompts, you will be asked for a final confirmation before modifying the original project file. As noted above, any "can play" responses that had previously been recorded in the project will be preserved for players whose names have not been changed.

@@ -107,8 +107,7 @@ commands:
     help = f"""\
 Player Lineup Manager ({plm_version})
 home directory: {plm_home}
-{commands}
-"""
+{commands}"""
 
     print(help)
     default_project = ""
