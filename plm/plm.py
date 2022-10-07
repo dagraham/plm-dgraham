@@ -126,7 +126,7 @@ home directory: {plm_home}
                 print(res)
             elif answer == 'q':
                 again = False
-                print(" quitting ...")
+                print("quitting plm ...")
             else:
                 if answer == 'e':
                     edit_roster()
@@ -150,7 +150,7 @@ home directory: {plm_home}
 
     except KeyboardInterrupt:
         play = False
-        print(" quitting ...")
+        print("\nquitting plm ...")
 
 
 def check_update():
@@ -377,10 +377,6 @@ DATES: [{dates}]
 NUM_COURTS: {numcourts}
 NUM_PLAYERS: {numplayers}
 
-# The names used as the keys in RESPONSES below were
-# obtained from the file '{plm_roster}'.
-# Responses are due by {rep_DATE}.
-
 REQUEST: |
     It's time to set the schedule for these dates:
 
@@ -418,6 +414,10 @@ REQUEST: |
 
 SCHEDULE: |
     Not yet processed
+
+# The entries in ADDRESSES and the names in RESPONSES below
+# correspond to those from the file '{plm_roster}' that
+# were tagged '{tag}'.
 """
 
     response_rows = []
