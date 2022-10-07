@@ -95,13 +95,13 @@ def main():
 commands:
     h:  show this help message
     e:  edit 'roster.yaml' using the default text editor
-    t:  tag an existing project as the default for subsequent commands
     p:  create/update a project
     a:  ask players for their "can play" dates
     r:  record the "can play" responses
     s:  schedule play using the "can play" responses
     d:  deliver the schedule to the players
-    v:  check for an update to a later plm version
+    v:  view the current settings of a project
+    u:  check for an update to a later plm version
     q:  quit
 """
 
@@ -116,12 +116,12 @@ home directory: {plm_home}
         again = True
         while again:
             answer = input("command: ").strip()
-            if answer not in 'hetparsdovq':
+            if answer not in 'hevparsdouq':
                 print(f"invalid command: '{answer}'")
                 print(commands)
             elif answer == 'h':
                 print(help)
-            elif answer == 'v':
+            elif answer == 'u':
                 res = check_update()
                 print(res)
             elif answer == 'q':
@@ -132,8 +132,8 @@ home directory: {plm_home}
                     edit_roster()
                 elif answer == 'o':
                     default_project = open_project(default_project)
-                elif answer == 't':
-                    default_project = tag_project(default_project)
+                elif answer == 'v':
+                    default_project = view_project(default_project)
                 elif answer == 'p':
                     default_project = create_project(default_project)
                 elif answer == 'a':
@@ -160,6 +160,7 @@ def check_update():
         t = r.text.strip()
         # t will be something like "version = '4.7.2'"
         url_version = t.split(' ')[-1][1:-1]
+        logger.debug(f"url_version: {url_version}")
         # split(' ')[-1] will give "'4.7.2'" and url_version will then be '4.7.2'
     except:
         url_version = None
@@ -173,19 +174,18 @@ def check_update():
 
     return res
 
-def tag_project(default_project=""):
+def view_project(default_project=""):
 
-    print("Select an existing project to be tagged as the default.")
-    project = get_project()
+    print("Select the project to be viewed.")
+    project = get_project(default_project)
     if not project:
         print("Cancelled")
         return default_project
     with open(project) as fo:
         lines = fo.readlines()
     project_name = os.path.split(project)[1]
-    border_length = min(16, (COLUMNS - len(project_name) - 10)//2)
+    border_length = min(18, (COLUMNS - len(project_name) - 10)//2)
     markers = "="*border_length
-    print(f"\nCurrent settings for the tagged project:")
     print(f"{markers} begin {project_name} {markers}")
     print("".join(lines))
     print(f"{markers}= end {project_name} ={markers}")
