@@ -45,7 +45,7 @@ This will install *plm* and any needed supporting python modules. This same proc
 
 	- If the current working directory contains a file 'roster.yaml' and a directory 'projects', then it will be used as the *home directory*.
 	- Otherwise if the environmental variable 'plmHOME' is set and points to a directory, then that directory will be used as the *home directory*.
-	- Otherwise `~/plm` will be used as the *home directory* and, with your confirmation, created if it does not already exist.
+	- Otherwise `~/plm` will be used as the *home directory* and, with your permission, created if it does not already exist.
 
 	A sub-directory called `projects` and a file called `roster.yaml` will be created in the *home directory* if they do not already exist
 
@@ -93,7 +93,6 @@ This will install *plm* and any needed supporting python modules. This same proc
     When creating a new project, you will be prompted for the tag of the players to be included so that, in the above example, the tag `mon` would include only Steve, but the tag `tue` would include both Steve and John.
 
     It is worth devoting some thought to the *tag* scheme you will use at this stage - changes made now are much easier than when projects have been created that rely upon existing tags.
-
 
 
 ### A New Project From Start to Finish

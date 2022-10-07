@@ -11,6 +11,7 @@ from prompt_toolkit.completion import NestedCompleter
 from prompt_toolkit.completion import FuzzyWordCompleter
 from collections import OrderedDict
 import pyperclip
+from pprint import pprint
 
 import ruamel.yaml
 from ruamel.yaml import YAML
@@ -174,11 +175,21 @@ def check_update():
 
 def tag_project(default_project=""):
 
-    print("Select an existing project to be tagged as the default project.")
+    print("Select an existing project to be tagged as the default.")
     project = get_project()
     if not project:
         print("Cancelled")
         return default_project
+    with open(project) as fo:
+        lines = fo.readlines()
+    project_name = os.path.split(project)[1]
+    border_length = min(16, (COLUMNS - len(project_name) - 10)//2)
+    markers = "="*border_length
+    print(f"\nCurrent settings for the tagged project:")
+    print(f"{markers} begin {project_name} {markers}")
+    print("".join(lines))
+    print(f"{markers}= end {project_name} ={markers}")
+
     return os.path.split(project)[1]
 
 def create_project(default_project=""):
@@ -190,7 +201,6 @@ def create_project(default_project=""):
     if not os.path.exists(plm_projects) or not os.path.isdir(plm_projects):
         problems.append(f"Either {plm_projects} does not exist or it is not a directory")
     if problems:
-        # print(problems)
         sys.exit(problems)
 
     with open(plm_roster, 'r') as fo:
@@ -377,8 +387,8 @@ REQUEST: |
         {dates}
 
     Please make a note on your calendars to let me have the dates you
-    can play from this list no later than {rep_date}. Timely replies are
-    greatly appreciated.
+    can play from this list no later than {rep_date}.
+    Timely replies are greatly appreciated.
 
     It would help me to copy and paste from your email if you would
     list your dates on one line, separated by commas in the same format
@@ -405,6 +415,9 @@ REQUEST: |
             asterisks appended to each date
 
     Thanks,
+
+SCHEDULE: |
+    Not yet processed
 """
 
     response_rows = []
@@ -423,7 +436,6 @@ REQUEST: |
             fo.write('\nRESPONSES:\n')
             for row in response_rows:
                 fo.write(f"    {row}")
-            fo.write('\nSCHEDULE: |\n')
         print(f"Saved {project_file}")
     else:
         print("Overwrite cancelled")
@@ -492,13 +504,6 @@ def create_schedule(default_project=""):
         print("Cancelled")
         return
     default_project = os.path.split(proj_path)[1]
-
-    # possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
-
-    # possible.sort()
-    # project_completer = FuzzyWordCompleter(possible)
-    # proj_to_schedule = prompt("Create schedule for project: ", completer=project_completer).strip()
-    # proj_path = os.path.join(plm_projects, proj_to_schedule)
 
     with open(proj_path, 'r') as fo:
         yaml_data = yaml.load(fo)
@@ -727,8 +732,6 @@ def create_schedule(default_project=""):
 """)
 
     for dd in DATES:
-        # dd = d.strftime("%m/%d")
-        # dkey = leadingzero.sub('', d.strftime("%m/%d"))
         d = parse(f"{dd} 12am")
         dtfmt = leadingzero.sub('', d.strftime("%a %b %d"))
         if not dd in schedule:
@@ -828,51 +831,8 @@ dates on which a court is scheduled have asterisks.
     output.append(format_head(section))
 
 
-    # unsel = [(unselected[name], opportunities[name]) for name in opportunities if opportunities[name]]
-    # unsel_hsh = {}
-    # if unsel:
-    #     unsel_lst = []
-    #     for (n, x) in unsel:
-    #         unsel_hsh.setdefault(str(n), []).append(str(x))
-    #     for n in unsel_hsh:
-    #         tmp_hsh = {i: unsel_hsh[n].count(i) for i in unsel_hsh[n]}
-    #         tmp_lst = []
-    #         for i in tmp_hsh:
-    #             if tmp_hsh[i] > 1:
-    #                 tmp_lst.append(f'{i}({tmp_hsh[i]})')
-    #             else:
-    #                 tmp_lst.append(f"{i}")
-    #         unsel_lst.append(f"{n}/[{', '.join(tmp_lst)}]")
-    #     output.append(wrap_format(f'Times unscheduled/times available and others scheduled*: {", ".join(unsel_lst)}'))
-
-    # cap = [(captain[name], captain[name] + notcaptain[name]) for name in available if available[name]]
-    # cap_hsh = {}
-    # if cap:
-    #     cap_lst = []
-    #     for (n, x) in cap:
-    #         cap_hsh.setdefault(str(n), []).append(str(x))
-    #     for n in cap_hsh:
-    #         tmp_hsh = {i: cap_hsh[n].count(i) for i in cap_hsh[n]}
-    #         tmp_lst = []
-    #         for i in tmp_hsh:
-    #             if tmp_hsh[i] > 1:
-    #                 tmp_lst.append(f'{i}({tmp_hsh[i]})')
-    #             else:
-    #                 tmp_lst.append(f"{i}")
-    #         cap_lst.append(f"{n}/[{', '.join(tmp_lst)}]")
-
-    #     output.append('')
-    #     output.append(wrap_format(f'Times captain/times scheduled: {", ".join(cap_lst)}'))
-
-    # output.append('')
     output.append(wrap_format(schdatestr))
     output.append('')
-
-    # output.append("""\
-# * An entry such as 2/[7(3)] would mean that there were 3 occasions
-  # in which i) a player was available 7 times when other players were
-  # scheduled and ii) the player was unscheduled 2 of those 3 times.
-# """)
 
     schedule = "\n".join(output)
 
@@ -918,7 +878,6 @@ section of your email, press <return> to continue to the next step.
         print("Cancelled")
         return
 
-    # projname = os.path.splitext(os.path.split(project)[1])[0]
     title = yaml_data['TITLE']
     copy_to_clipboard(f"{title} - dates request")
 
@@ -971,7 +930,6 @@ section of your email, press <return> to continue to the next step.
         print("Cancelled")
         return default_project
 
-    # projname = os.path.splitext(os.path.split(project)[1])[0]
     title = yaml_data['TITLE']
     copy_to_clipboard(f"{title} - Schedule")
 
