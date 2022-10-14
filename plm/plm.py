@@ -12,6 +12,8 @@ from prompt_toolkit.completion import FuzzyWordCompleter
 from collections import OrderedDict
 import pyperclip
 from pprint import pprint
+import calendar
+import textwrap
 
 import ruamel.yaml
 from ruamel.yaml import YAML
@@ -78,6 +80,110 @@ def get_project(default_project=""):
         return project
     else:
         return None
+
+
+def get_dates(label, year, month, default):
+
+    print(f"""
+Specify playing dates in calendar order separated by commas on one
+line using the 'mm/dd' format for each date. The year from your "reply
+by date", {year}, will be assumed unless the month is less than month
+from your "reply by date", {month}, in which case the following year
+will be assumed. E.g. with "reply by" year 2022 and month 10, '11/4'
+and '1/5' would be interpreted, respectively, as '2022/11/04' and
+'2023/01/05'.
+
+If the last part of your entry has the format 'mm', i.e., omits the
+'/dd', then a calendar for that month will be displayed to assist in
+your entries.
+""")
+
+    again = True
+    year = int(year)
+    month = int(month)
+    current = ""
+    confirm = False
+    while again:
+        result = prompt(f"{label}: ", completer=None, default=current)
+        if not result:
+            print('quitting ...')
+            return None
+        msg = ""
+        dates = [x.strip() for x in result.split(',')]
+        days = []
+        current = ", ".join(dates)
+        for i in range(len(dates)):
+            md = dates[i]
+            try:
+                m_d = [int(x) for x in md.split('/') if x]
+            except Exception as e:
+                print(f"error: bad entry for {md}")
+                continue
+            yr = year+1 if m_d[0] < month else year
+            if len(m_d) == 1: # month only
+                print(calendar.month(yr, m_d[0]))
+                confirm = False
+            else:
+                days.append(parse(f"{yr}/{md}", yearfirst=True))
+                confirm = True # enter pressed with mm/dd
+
+        if confirm:
+            print(f"dates: {current}")
+            ok = prompt("Accept these dates: [Yn]").strip()
+            if ok.lower() != 'n':
+                return dates, days
+
+
+def get_date(label="", default=""):
+    help = """\
+Enter a date using the format 'yyyy/mm/dd' or, to consult a calendar,
+enter 'yyyy/mm' to see a calendar showing the month or 'yyyy' to see
+a calendar for the entire year.\
+"""
+    again = True
+    while again:
+        print(help)
+        result = prompt(f"{label}: ", completer=None, default=str(default))
+
+        if not result:
+            return None
+
+        msg = ""
+        parts = [x.strip() for x in result.split('/') if x]
+        if len(parts) == 3:
+            try:
+                dt = parse(result, yearfirst=True)
+            except ParseError as e:
+                msg = f"error: {e}"
+            else:
+                return pendulum.instance(dt).format('YYYY/MM/DD')
+        elif len(parts) == 2:
+            # year and month - show month
+            try:
+                year = int(parts[0]) if int(parts[0]) > 2000  else 2000 + int(parts[0])
+                month = int(parts[1])
+                print(calendar.month(year, month))
+                default = f"{year}/{month}"
+            except Exception as e:
+                msg = f"error: {e}"
+
+        elif len(parts) == 1:
+            # only year - show year
+            try:
+                year = int(parts[0]) if int(parts[0]) > 2000  else 2000 + int(parts[0])
+                print(calendar.calendar(year))
+                default = f"{year}"
+            except Exception as e:
+                msg = f"error: {e}"
+
+        else:
+            msg = f"bad entry: {result}"
+
+        if msg:
+            print(msg)
+            print(f"bad entry: {result}. Either 'yyyy/mm/dd', 'yyyy/mm' or 'yyyy' is required. Enter nothing to cancel.")
+
+    return date
 
 
 def edit_roster():
@@ -192,6 +298,7 @@ def view_project(default_project=""):
 
     return os.path.split(project)[1]
 
+
 def create_project(default_project=""):
     # Create prompt object.
     session = PromptSession()
@@ -271,9 +378,9 @@ def create_project(default_project=""):
         DAY = ""
         BEGIN = ""
         END = ""
-        DATES = ""
-        NUM_PLAYERS = ""
         RESPONSES = {}
+        DATES = []
+        NUM_PLAYERS = ""
 
     print(f"""
 A user friendly title is needed to use as the subject of emails sent
@@ -306,16 +413,20 @@ These tags are currently available: [{', '.join(player_tags)}].\
 The letter sent to players asking for their availability dates will
 request a reply by 6pm on the "reply by date" that you specify next.\
             """)
-    reply = session.prompt("reply by date: ", completer=None, default=str(REPLY_BY))
+    # reply = session.prompt("reply by date: ", completer=None, default=str(REPLY_BY))
+    reply = get_date("reply by date", default=str(REPLY_BY))
+    if reply is None:
+        print("cancelled")
+        return None
     rep_dt = parse(f"{reply} 6pm")
-    print(f"reply by: {rep_dt}")
+    print(f"reply by: {pendulum.instance(rep_dt).format('YYYY/MM/DD HH:mm')}")
 
     print("""
 If play repeats weekly on the same weekday, playing dates can given by
 specifying the weekday and the beginning and ending dates. Otherwise,
 dates can be specified individually.
             """)
-    repeat = session.prompt("Repeat weekly: [Yn] ", default='y').lower().strip()
+    repeat = session.prompt("Repeat weekly: [Yn] ", default=REPEAT).lower().strip()
     if repeat == 'y':
         day = int(session.prompt("The integer weekday (0: Mon, 1: Tue, 2: Wed, 3: Thu, 4: Fri, 5: Sat): ", default=str(DAY)))
         # rrule objects for generating days
@@ -326,31 +437,44 @@ dates can be specified individually.
         print(f"""
 Play will be scheduled for {weekdays[day]}s falling on or after the
 "beginning date" you specify next.""")
-        beginning = session.prompt("beginning date: ", default=str(BEGIN))
+        # beginning = session.prompt("beginning date: ", default=str(BEGIN))
+        beginning = get_date("beginning date", str(BEGIN))
+        if beginning is None:
+            print("cancelled")
+            return None
         beg_dt = parse(f"{beginning} 12am")
         print(f"beginning: {beg_dt}")
         print(f"""
 Play will also be limited to {weekdays[day]}s falling on or before the
 "ending date" you specify next.""")
-        ending = session.prompt("ending date: ", default=str(END))
+        # ending = session.prompt("ending date: ", default=str(END))
+        ending = get_date("ending date", str(END))
+        if ending is None:
+            print("cancelled")
+            return None
         end_dt = parse(f"{ending} 11:59pm")
         print(f"ending: {end_dt}")
         days = list(rrule(WEEKLY, byweekday=weekday[day], dtstart=beg_dt, until=end_dt))
     else:
-        day = ""
-        print("""
-Playing dates separated by commas using 'MM/DD/YY' format. The current
-year is assumed if '/YY' is omitted.
-    """)
-        dates = session.prompt("Dates: ", default=", ".join(DATES))
-        days = [parse(f"{x} 12am") for x in dates.split(',')]
-        days.sort()
+        day = None
+        dates, days = get_dates(label="Dates",
+                               year=rep_dt.year,
+                               month=rep_dt.month,
+                               default=', '.join(DATES))
 
-    reply_formatted = pendulum.instance(rep_dt).format('YYYY-MM-DD')
+        print(f"using these dates:\n  {', '.join(dates)}")
+
+    reply_formatted = pendulum.instance(rep_dt).format('YYYY/MM/DD')
     beginning_datetime = pendulum.instance(days[0])
-    beginning_formatted = beginning_datetime.format('YYYY-MM-DD')
+    beginning_formatted = beginning_datetime.format('YYYY/MM/DD')
     ending_datetime = pendulum.instance(days[-1])
-    ending_formatted = ending_datetime.format('YYYY-MM-DD')
+    ending_formatted = ending_datetime.format('YYYY/MM/DD')
+    byear = beginning_datetime.year
+    eyear = ending_datetime.year
+    if byear == eyear:
+        years = f"{byear}"
+    else:
+        years = f"{byear} - {eyear}"
 
     dates = ", ".join([f"{x.month}/{x.day}" for x in days])
     DATES = [x.strip() for x in dates.split(",")]
@@ -378,9 +502,9 @@ NUM_COURTS: {numcourts}
 NUM_PLAYERS: {numplayers}
 
 REQUEST: |
-    It's time to set the schedule for these dates:
+    It's time to set the schedule for these dates in {years}:
 
-        {dates}
+        {textwrap.fill(dates, width=60, initial_indent='', subsequent_indent=' '*8)}
 
     Please make a note on your calendars to let me have the dates you
     can play from this list no later than {rep_date}.
