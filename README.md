@@ -1,7 +1,7 @@
-## Player Lineup Manager
+# Player Lineup Manager
 
 
-### History
+## History
 
 Some variant of *plm* has been used privately since 2014 to schedule tennis doubles matches for a group of around 30 tennis players. Play for this group occurs weekly on Tuesdays using as many courts as necessary and the schedules are made for three months (one quarter) at a time. More recently, smaller Monday and Friday groups have been added each using at most one court. The process involves these steps.
 
@@ -13,13 +13,13 @@ Some variant of *plm* has been used privately since 2014 to schedule tennis doub
 
 The current version of this program automates each of the steps in this process and allows some flexibility in scheduling dates, indicating a willingness to be a possible substitute, specifying the number of players per court (doubles or singles), and so forth. A further change is that all information relevant to a project is now stored in a single, project file in *yaml* format with players's responses listing the dates that the player *can* play rather than the dates the player *cannot* play. A final change is that *plm* is now publically available both from *PyPi*, [plm-dgraham](https://pypi.org/project/plm-dgraham/), and from *GitHub*, [dagraham/plm-dgraham](https://github.com/dagraham/plm-dgraham).
 
-### Requirements
+## Requirements
 
-This program requires `python3` which must be installed on your system. To check for this requirement, open a terminal window and execute:
+This program requires `python3`. To check for this requirement, open a terminal window and execute:
 
 		~ % which python3
 
-If python3 is installed the response should be something like
+If *python3* is installed the response should be something like
 
 		/Library/Frameworks/Python.framework/Versions/3.10/bin/python3
 
@@ -27,7 +27,23 @@ and, otherwise,
 
 		python3 not found
 
-If *python3* is installed, the next step is to install *plm*. First update the python package manager, *pip*, using python3
+If *python3* is not installed, follow the appropriate procedure for your operating system for installation.
+
+## Initial Setup
+
+If *python3* is installed, the next step is to setup a *home directory* for *plm* to use when it starts. These are the options:
+
+- If the current working directory contains a file 'roster.yaml' and a directory 'projects', then it will be used as the *home directory*.
+- Otherwise if the environmental variable 'plmHOME' is set and points to a directory, then that directory will be used as the *home directory*.
+- Otherwise `~/plm` will be used as the *home directory* and, with your permission, created if it does not already exist.
+
+When *plm* is started for the first time, a sub-directory called `projects` and a file called `roster.yaml` will be created in the *home directory* if they do not already exist.
+
+## Installation {#installation}
+
+### For personal use {#for-personal-use}
+
+The easiest way to install *plm* for personal use is to use *pip*. First update the python package manager, *pip*, using python3
 
         ~ % python3 -m pip install -U pip
 
@@ -35,43 +51,74 @@ and then install *plm* itself
 
         ~ % python3 -m pip install -U plm-dgraham
 
-This will install *plm* and any needed supporting python modules. This same process is also used to update *plm* when a new version is available.
+This will install *plm* and any needed supporting python modules. This same can also also be used to update *plm* when a new version becomes available.
 
+### For use in a virtual environment {#For-use-in-a-virtual-environment}
 
-### Initial Setup
+Setting up a virtual environment for *plm* is only slightly more complicated. The steps for OS/X or linux are illustrated below. For details see [python-virtual-environments-a-primer](https://www.google.com/url?q=https%3A%2F%2Frealpython.com%2Fpython-virtual-environments-a-primer%2F&sa=D&sntz=1&usg=AFQjCNFh7QpJQ4rPCDjZ1eLrV1BRCCpSmw).
 
+Open a terminal and begin by creating a new directory/folder for the virtual environment, say `plm-pypi`, in your home directory:
 
-- A *home directory* is required when *plm* starts. These are the options:
+        % mkdir ~/plm-pypi
+        % cd ~/plm-pypi
 
-	- If the current working directory contains a file 'roster.yaml' and a directory 'projects', then it will be used as the *home directory*.
-	- Otherwise if the environmental variable 'plmHOME' is set and points to a directory, then that directory will be used as the *home directory*.
-	- Otherwise `~/plm` will be used as the *home directory* and, with your permission, created if it does not already exist.
+Now continue by creating the virtual environment:
 
-	A sub-directory called `projects` and a file called `roster.yaml` will be created in the *home directory* if they do not already exist
+        % python3 -m venv env
 
-- Invoking *plm* gives something like
+After a few seconds you will have a new `./env` directory. Now activate the virtual environment:
 
-		~ % plm
-        Player Lineup Manager (0.1.7)
-        home directory: ~/plm
+        % source env/bin/activate
 
-        commands:
-			h:  show this help message
-			e:  edit 'roster.yaml' using the default text editor
-			p:  create/update a project
-			a:  ask players for their "can play" dates
-			r:  record the "can play" responses
-			s:  schedule play using the "can play" responses
-			d:  deliver the schedule to the players
-			v:  view the current settings of a project
-			u:  check for an update to a later plm version
-			q:  quit
+The prompt will now change to something containing `(env)` to indicate that the virtual environment is active. Updating pip is now recommended:
 
-        command:
+        (env) % pip install -U pip
 
-    This begins a loop in which *plm* waits for you to enter a command at the prompt, processes the command and, unless the command is *q* (quit), waits for your next command.
+Note that this invokes `./env/bin/pip`. Once this is finished, use pip to install etm:
 
-    Note: the commands *p*, *a*, *r*, *s*, *d* and *v* begin with a request that you select the relevant project. Tab completion is available and, once a selection is made, this project becomes the *default project* for any further use of the commands in this group while the command loop continues.
+        (env) % pip install -U plm-dgraham
+
+This will install *plm* and all its requirements in
+
+		./env/lib/python3.x/sitepackages
+
+and will also install an executable called `plm` in `./env/bin`. This same command can be used to update *plm* when a new version becomes available.
+
+## Starting *plm*
+
+If using a virtual environment, first change to that directory and activate the virtual environment, if necessary:
+
+    % cd ~/plm
+    % source env/bin/activate
+    (env) % plm
+
+Otherwise, just invoke *plm* directly
+
+    % plm
+
+Either way, you will see something like this
+
+    ~ % plm
+    Player Lineup Manager (0.1.7)
+    home directory: ~/plm
+
+    commands:
+        h:  show this help message
+        e:  edit 'roster.yaml' using the default text editor
+        p:  create/update a project
+        a:  ask players for their "can play" dates
+        r:  record the "can play" responses
+        s:  schedule play using the "can play" responses
+        d:  deliver the schedule to the players
+        v:  view the current settings of a project
+        u:  check for an update to a later plm version
+        q:  quit
+
+    command:
+
+This begins a loop in which *plm* waits for you to enter a command at the prompt, processes the command and, unless the command *q* (quit) is given, waits for your next command.
+
+Note: the commands *p*, *a*, *r*, *s*, *d* and *v* begin with a request that you select the relevant project. Tab completion is available and, once a selection is made, this project becomes the *default project* for any further use of the commands in this group while the command loop continues.
 
 
 - You can now open `roster.yaml` in your favorite editor or use command *e*:

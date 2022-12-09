@@ -25,7 +25,9 @@ VERSION = version
 REQUIRED = [
         "prompt-toolkit>=3.0.24",
         "ruamel.yaml>=0.15.88",
-        "python-dateutil>=2.7.3"
+        "python-dateutil>=2.7.3",
+        "requests>=2.25.1",
+        "pyperclip>=1.7.0",
 ]
 
 # What packages are optional?
@@ -102,16 +104,10 @@ class UploadCommand(Command):
             print("error removing dist tree:", e)
 
         self.status('Building Source and Wheel (universal) distribution…')
-        # os.system('{0} setup.py sdist bdist_wheel --universal'.format(sys.executable))
-        os.system('{0} setup.py sdist'.format(sys.executable))
+        os.system('{0} setup.py sdist bdist_wheel --universal'.format(sys.executable))
 
         self.status('Uploading the package to PyPI via Twine…')
-        os.system('twine upload --verbose dist/*')
-
-
-        # self.status('Pushing git tags…')
-        # os.system('git tag v{0}'.format(about['__version__']))
-        # os.system('git push --tags')
+        os.system('twine upload --verbose --repository-url https://upload.pypi.org/legacy/ dist/*')
 
         sys.exit()
 
@@ -141,7 +137,6 @@ setup(
     include_package_data=True,
     license='GPL',
     classifiers=CLASSIFIERS,
-    # $ setup.py publish support.
     cmdclass={
         'upload': UploadCommand,
     },

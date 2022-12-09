@@ -38,6 +38,17 @@ COLUMNS, ROWS  = shutil.get_terminal_size()
 
 cwd = os.getcwd()
 
+def clear_screen(default_project=""):
+    # Clearing the Screen
+    # posix is os name for Linux or mac
+    if(os.name == 'posix'):
+        os.system('clear')
+    # else screen will be cleared for windows
+    else:
+        os.system('cls')
+    return default_project
+
+
 def copy_to_clipboard(text):
     pyperclip.copy(text)
     print(f"copied to system clipboard")
@@ -50,6 +61,9 @@ def openWithDefault(path):
         ok = True if res else False
     else:
         path = os.path.normpath(os.path.expanduser(path))
+        if not os.path.isfile(path):
+            print(f"path '{path}' not found")
+            return None
         logger.debug(f"path: {path}")
         sys_platform = platform.system()
         if platform.system() == 'Darwin':       # macOS
@@ -79,6 +93,7 @@ def get_project(default_project=""):
     if os.path.isfile(project):
         return project
     else:
+        print(f"project '{project}' not found")
         return None
 
 
@@ -208,6 +223,7 @@ commands:
     d:  deliver the schedule to the players
     v:  view the current settings of a project
     u:  check for an update to a later plm version
+    l:  clear the screen
     q:  quit
 """
 
@@ -222,7 +238,7 @@ home directory: {plm_home}
         again = True
         while again:
             answer = input("command: ").strip()
-            if answer not in 'hevparsdouq':
+            if answer not in 'lhevparsdouq':
                 print(f"invalid command: '{answer}'")
                 print(commands)
             elif answer == 'h':
@@ -250,7 +266,9 @@ home directory: {plm_home}
                     default_project = create_schedule(default_project)
                 elif answer == 'd':
                     default_project = deliver_schedule(default_project)
-                print(commands)
+                elif answer == 'l':
+                    default_project = clear_screen(default_project)
+                    print(help)
                 if default_project:
                     print(f"default project: {default_project}")
 
@@ -462,6 +480,7 @@ Play will also be limited to {weekdays[day]}s falling on or before the
                                month=rep_dt.month,
                                default=', '.join(DATES))
 
+
         print(f"using these dates:\n  {', '.join(dates)}")
 
     reply_formatted = pendulum.instance(rep_dt).format('YYYY/MM/DD')
@@ -477,6 +496,12 @@ Play will also be limited to {weekdays[day]}s falling on or before the
         years = f"{byear} - {eyear}"
 
     dates = ", ".join([f"{x.month}/{x.day}" for x in days])
+    num_dates = len(days)
+    if num_dates == 0:
+        print(f"ERROR. No dates were scheduled")
+    elif num_dates >= 30:
+        print(f"WARNING. An unusually large number of dates, {num_dates}, were scheduled. \nIs this what was intended?")
+
     DATES = [x.strip() for x in dates.split(",")]
     numcourts = session.prompt("number of courts (0 for unlimited, else allowed number): ", default="0")
     numplayers = session.prompt("number of players (2 for singles, 4 for doubles): ", default="4")
@@ -627,24 +652,31 @@ def create_schedule(default_project=""):
     if not proj_path:
         print("Cancelled")
         return
+    if not os.path.isfile(proj_path):
+        print(f"project '{proj_path}' not found")
+        return
     default_project = os.path.split(proj_path)[1]
-
     with open(proj_path, 'r') as fo:
         yaml_data = yaml.load(fo)
 
     TITLE = yaml_data['TITLE']
-    DAY = yaml_data['DAY']
-    responses = yaml_data['RESPONSES']
+    # DAY ses = yaml_data['RESPONSES']
     addresses = yaml_data['ADDRESSES']
     DATES = yaml_data['DATES']
     NUM_PLAYERS = yaml_data['NUM_PLAYERS']
-    TAG = yaml_data['PLAYER_TAG']
+    # TAG = yaml_data['PLAYER_TAG']
 
     RESPONSES = {format_name(k): v for k, v in responses.items()}
     ADDRESSES = {format_name(k): v for k, v in addresses.items()}
 
     # get the roster
     NAMES = [x for x in RESPONSES.keys()]
+
+    missing = [x for x in [TITLE, RESPONSES, ADDRESSES, DATES, NUM_PLAYERS, NAMES] if not x]
+
+    if missing:
+        print(f"ERROR. The following required data fields were missing or empty in {proj_path}:\n {', '.join(missing)}")
+        return None
 
     for name in NAMES:
         # initialize all the name counters
