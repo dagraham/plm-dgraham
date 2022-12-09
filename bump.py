@@ -3,8 +3,9 @@
 import pendulum
 import sys
 from plm.__version__ import version
-
+import etm.view as view
 check_output = view.check_output
+
 ok, gb = check_output("git branch")
 print('branch:')
 print(gb)
