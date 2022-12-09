@@ -5,23 +5,19 @@ import sys
 import logging
 import logging.config
 logger = logging.getLogger()
-import subprocess # for check_output
 
-from plm.__version__ import version
+from etm.__version__ import version
+import etm.view as view
+# from etm.view import check_output
+import etm.options as options
 
-def check_output(cmd):
-    if not cmd:
-        return
-    res = ""
-    try:
-        res = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True, universal_newlines=True, encoding='UTF-8')
-        return True, res
-    except subprocess.CalledProcessError as e:
-        logger.warning(f"Error running {cmd}\n'{e.output}'")
-        lines = e.output.strip().split('\n')
-        msg = lines[-1]
-        return False, msg
 
+setup_logging = options.setup_logging
+setup_logging(1, '~/etm-dgraham')
+view.logger = logger
+
+
+check_output = view.check_output
 ok, gb = check_output("git branch")
 print('branch:')
 print(gb)
@@ -36,7 +32,7 @@ if gs:
 
 # PEP 440 extensions
 # possible_extensions = ['a', 'b', 'rc', '.post', '.dev']
-# For plm only the following will be used
+# For etm only the following will be used
 possible_extensions = ['a', 'b', 'rc']
 
 pre = post = version
@@ -80,7 +76,7 @@ if ext and ext in extension_options:
     opts.append(f"  j: {b_major}")
 
 import os
-version_file = os.path.join(os.getcwd(), 'plm', '__version__.py')
+version_file = os.path.join(os.getcwd(), 'etm', '__version__.py')
 
 print("\n".join(opts))
 res = input(f"Which new version? ")
@@ -130,6 +126,14 @@ if new_version:
     check_output(f"echo 'Recent tagged changes as of {pendulum.now()}:' > CHANGES.txt")
     check_output(f"git log --pretty=format:'- %ar%d %an%n    %h %ai%n%w(70,4,4)%B' --max-count={count} --no-walk --tags >> CHANGES.txt")
     check_output(f"git commit -a --amend -m '{tmsg}'")
+
+    ans = input("switch to master, merge working and push to origin? [yN] ")
+    if ans.lower() != 'y':
+        print('cancelled')
+        sys.exit()
+    ok, res = check_output(f"git checkout master && git merge working && git push && git checkout working")
+    if res:
+        print(res)
 
 else:
     print(f"retained version: {version}")
