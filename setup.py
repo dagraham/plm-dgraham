@@ -26,6 +26,7 @@ REQUIRED = [
         "prompt-toolkit>=3.0.24",
         "ruamel.yaml>=0.15.88",
         "python-dateutil>=2.7.3",
+        "pendulum>=2.0.4",
         "requests>=2.25.1",
         "pyperclip>=1.7.0",
 ]
