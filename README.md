@@ -6,7 +6,7 @@
 Some variant of *plm* has been used privately since 2014 to schedule tennis doubles matches for a group of around 30 tennis players. Play for this group occurs weekly on Tuesdays using as many courts as necessary and the schedules are made for three months (one quarter) at a time. More recently, smaller Monday and Friday groups have been added each using at most one court. The process involves these steps.
 
 - Obtain from each player a list of the dates that the player can play.
-- Randomly sort available players for each date into groups of four taking account of previous pairings.
+- Randomly sort available players for each date into groups of two (singles) or four (doubles) taking account of previous pairings.
 - From each group, randomly select a 'captain' taking account of previous selections.
 - Produce a "user friendly" version of the schedule organized both by date and by player.
 - Send the completed schedule to each player.
@@ -83,6 +83,10 @@ This will install *plm* and all its requirements in
 		./env/lib/python3.x/sitepackages
 
 and will also install an executable called `plm` in `./env/bin`. This same command can be used to update *plm* when a new version becomes available.
+
+The virtual environment only affects the terminal window in which it was activated and can be deactivated, if you wish, by using:
+
+		(env) % deactivate
 
 ## Starting *plm*
 
@@ -169,6 +173,8 @@ As you receive responses, you can start *plm*, if necessary, and use the *record
         command: r
 
 Again you will be prompted to choose the relevant project with tab completion available. This begins a loop in which you can choose a player using tab completion and then enter the player's response to the "can play" dates query. The response for a player can be 'all', 'none', 'nr' (no response) or a comma separated list of dates using the month/day format. Asterisks can be appended to dates in which the player wants to be listed as a sub, e.g., '10/4, 10/18*, 10/25' for can play on 10/4 or 10/25 and might be able to subsitute on 10/18. This process continues until you enter a 'q' to end the loop and, if changes have been made, indicate whether or not you would like to save them. This entry process can be repeated as often as you like until you are satisfied that all responses have been correctly entered.
+
+Hint: you can have *plm* running in a terminal window near your email program with the `r` command activated so that when you get a reply from say, Joe Smith, you can just enter "j" at the prompt to choose "Joe Smith" using auto completion and then enter his reply. This is handy because the replies will, at best, arrive sporadically.
 
 
 #### 4. Process responses to create the schedule

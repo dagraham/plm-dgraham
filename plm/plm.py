@@ -17,7 +17,10 @@ import textwrap
 
 import ruamel.yaml
 from ruamel.yaml import YAML
-yaml = YAML(typ='safe', pure=True)
+# yaml = YAML(typ='safe') # no round trip
+yaml = YAML() # round trip
+yaml.indent(mapping=2, sequence=4, offset=2)
+
 import os
 import sys
 import re
@@ -35,6 +38,7 @@ leadingzero = re.compile(r'(?<!(:|\d|-))0+(?=\d)')
 
 # for wrap_print
 COLUMNS, ROWS  = shutil.get_terminal_size()
+COLUMNS -= 4
 
 cwd = os.getcwd()
 
@@ -995,8 +999,8 @@ dates on which a court is scheduled have asterisks.
     yaml_data['SCHEDULE'] = schedule
 
     with open(proj_path, 'w') as fn:
-        yaml.default_flow_style = False
-        yaml.indent(mapping=2, sequence=4, offset=2)
+        # yaml.default_flow_style = None
+        # yaml.indent(mapping=2, sequence=4, offset=2)
         yaml.dump(yaml_data, fn)
         print(f"Schedule saved to {proj_path}")
 
@@ -1118,6 +1122,7 @@ def record_responses(default_project=""):
 
     RESPONSES = yaml_data['RESPONSES']
     DATES = yaml_data['DATES']
+    PLAYER_TAG = yaml_data['PLAYER_TAG']
 
     players = FuzzyWordCompleter([x for x in RESPONSES])
 
@@ -1127,9 +1132,10 @@ def record_responses(default_project=""):
 The response for a player should be 'all', 'none', 'nr' (no reply)
 or a comma separated list of dates using the month/day format.
 Asterisks can be appended to dates in which the player wants to be
-listed as a sub, e.g., '{DATES[0]}, {DATES[2]}*, {DATES[3]}'. Possible
-dates:
-    {", ".join(DATES)}
+listed as a sub, e.g., '{DATES[0]}, {DATES[2]}*, {DATES[3]}'.
+
+dates: {wrap_format(", ".join(DATES))}
+player tag: {PLAYER_TAG}
 """)
 
     changes = ""
@@ -1192,8 +1198,8 @@ dates:
         if ok.lower() == 'n':
             sys.exit("changes discarded")
         with open(project, 'w') as fn:
-            yaml.default_flow_style = False
-            yaml.indent(mapping=2, sequence=4, offset=2)
+            # yaml.default_flow_style = None
+            # yaml.indent(mapping=2, sequence=4, offset=2)
             yaml.dump(yaml_data, fn)
     else:
         print("no changes to save")
