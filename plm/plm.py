@@ -664,7 +664,7 @@ def create_schedule(default_project=""):
         yaml_data = yaml.load(fo)
 
     TITLE = yaml_data['TITLE']
-    # DAY ses = yaml_data['RESPONSES']
+    responses = yaml_data['RESPONSES']
     addresses = yaml_data['ADDRESSES']
     DATES = yaml_data['DATES']
     NUM_PLAYERS = yaml_data['NUM_PLAYERS']
