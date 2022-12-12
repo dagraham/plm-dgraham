@@ -653,6 +653,9 @@ def create_schedule(default_project=""):
     courts_scheduled = {}
     session = PromptSession()
     proj_path = get_project(default_project)
+    now = pendulum.now()
+    cur_year = now.year
+    cur_month = now.month
     if not proj_path:
         print("Cancelled")
         return
@@ -890,9 +893,15 @@ def create_schedule(default_project=""):
 3) 'Substitutes' for a date asked not to be scheduled but instead
    to be listed as possible substitutes.
 """)
-
+    date_year = cur_year
+    date_month = cur_month
     for dd in DATES:
-        d = parse(f"{dd} 12am")
+        date_month, _ = [int(x) for x in dd.split('/')]
+        if cur_month > date_month:
+            date_year += 1
+        cur_month = date_month
+
+        d = parse(f"{date_year}/{dd} 12am")
         dtfmt = leadingzero.sub('', d.strftime("%a %b %d"))
         if not dd in schedule:
             continue
