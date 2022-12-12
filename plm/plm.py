@@ -20,7 +20,7 @@ from ruamel.yaml import YAML
 # yaml = YAML(typ='safe') # no round trip
 yaml = YAML() # round trip
 yaml.indent(mapping=2, sequence=4, offset=2)
-
+yaml.default_flow_style = None
 import os
 import sys
 import re
@@ -103,7 +103,7 @@ def get_project(default_project=""):
 
 def get_dates(label, year, month, default):
 
-    print(f"""
+    help = f"""
 Specify playing dates in calendar order separated by commas on one
 line using the 'mm/dd' format for each date. The year from your "reply
 by date", {year}, will be assumed unless the month is less than month
@@ -115,7 +115,9 @@ and '1/5' would be interpreted, respectively, as '2022/11/04' and
 If the last part of your entry has the format 'mm', i.e., omits the
 '/dd', then a calendar for that month will be displayed to assist in
 your entries.
-""")
+"""
+
+    print(help)
 
     again = True
     year = int(year)
@@ -136,7 +138,10 @@ your entries.
             try:
                 m_d = [int(x) for x in md.split('/') if x]
             except Exception as e:
-                print(f"error: bad entry for {md}")
+                print(f"error: bad entry for month/day: {md}")
+                continue
+            if m_d[0] > 12:
+                print(f"error: bad entry for month: {month}")
                 continue
             yr = year+1 if m_d[0] < month else year
             if len(m_d) == 1: # month only
@@ -535,8 +540,8 @@ REQUEST: |
 
         {textwrap.fill(dates, width=60, initial_indent='', subsequent_indent=' '*8)}
 
-    Please make a note on your calendars to let me have the dates you
-    can play from this list no later than {rep_date}.
+    Please make a note on your calendars to let me have the DATES YOU
+    CAN PLAY from this list no later than {rep_date}.
     Timely replies are greatly appreciated.
 
     It would help me to copy and paste from your email if you would
