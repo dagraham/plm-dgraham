@@ -39,9 +39,9 @@ If *python3* is installed, the next step is to setup a *home directory* for *plm
 
 When *plm* is started for the first time, a sub-directory called `projects` and a file called `roster.yaml` will be created in the *home directory* if they do not already exist.
 
-## Installation {#installation}
+## Installation
 
-### For personal use {#for-personal-use}
+### For personal use
 
 The easiest way to install *plm* for personal use is to use *pip*. First update the python package manager, *pip*, using python3
 
