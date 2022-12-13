@@ -53,7 +53,7 @@ and then install *plm* itself
 
 This will install *plm* and any needed supporting python modules. This same can also also be used to update *plm* when a new version becomes available.
 
-### For use in a virtual environment {#For-use-in-a-virtual-environment}
+### For use in a virtual environment
 
 Setting up a virtual environment for *plm* is only slightly more complicated. The steps for OS/X or linux are illustrated below. For details see [python-virtual-environments-a-primer](https://www.google.com/url?q=https%3A%2F%2Frealpython.com%2Fpython-virtual-environments-a-primer%2F&sa=D&sntz=1&usg=AFQjCNFh7QpJQ4rPCDjZ1eLrV1BRCCpSmw).
 
