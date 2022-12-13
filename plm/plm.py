@@ -93,6 +93,7 @@ def get_project(default_project=""):
     possible.sort()
     completer = FuzzyWordCompleter(possible)
     proj = prompt("project: ", completer=completer, default=default_project).strip()
+    proj = proj if proj.endswith('.yaml') else proj + '.yaml'
     project = os.path.join(plm_projects, proj)
     if os.path.isfile(project):
         return project
@@ -225,11 +226,11 @@ def main():
 commands:
     h:  show this help message
     e:  edit 'roster.yaml' using the default text editor
-    p:  create/update a project
-    a:  ask players for their "can play" dates
-    r:  record the "can play" responses
-    s:  schedule play using the "can play" responses
-    d:  deliver the schedule to the players
+    p:  create/update a project                           (1)
+    a:  ask players for their "can play" dates            (2)
+    r:  record the "can play" responses                   (3)
+    s:  schedule play using the "can play" responses      (4)
+    d:  deliver the schedule to the players               (5)
     v:  view the current settings of a project
     u:  check for an update to a later plm version
     l:  clear the screen
@@ -247,10 +248,10 @@ home directory: {plm_home}
         again = True
         while again:
             answer = input("command: ").strip()
-            if answer not in 'lhevparsdouq':
+            if answer not in 'lhevparsdouq?':
                 print(f"invalid command: '{answer}'")
                 print(commands)
-            elif answer == 'h':
+            elif answer in ['h', '?']:
                 print(help)
             elif answer == 'u':
                 res = check_update()
@@ -540,7 +541,7 @@ REQUEST: |
 
         {textwrap.fill(dates, width=60, initial_indent='', subsequent_indent=' '*8)}
 
-    Please make a note on your calendars to let me have the DATES YOU
+    Please make a note on your calendars to email me the DATES YOU
     CAN PLAY from this list no later than {rep_date}.
     Timely replies are greatly appreciated.
 
@@ -1024,10 +1025,8 @@ dates on which a court is scheduled have asterisks.
 def ask_players(default_project=""):
     print("""
 This will help you prepare an email to request cannot play dates
-from the relevant players. You will need to open your favorite
-email application, create a new email and be ready to paste
-(1) the addresses, (2) the subject and (3) the body into the email.
-""")
+from the relevant players.""")
+
     print("The first step is to select the project.")
     project = get_project(default_project)
     if not project:
@@ -1037,6 +1036,15 @@ email application, create a new email and be ready to paste
     with open(project) as fo:
         yaml_data = yaml.load(fo)
 
+    print("""The next step is to
+1) open your favorite email application,
+2) create a new email and
+3) be ready to paste
+  (a) the addresses
+  (b) the subject
+  (c) the body
+into the email. You will be prompted for each paste operation in turn.
+""")
     ADDRESSES = yaml_data['ADDRESSES']
     addresses = ', '.join([v for k, v in ADDRESSES.items()])
     copy_to_clipboard(addresses)
@@ -1046,21 +1054,24 @@ The email addresses for the relevant players have been copied
 to the system clipboard. When you have pasted them into the "to"
 section of your email, press <return> to continue to the next step.
 """)
-    ok = prompt("Continue: ", default='yes')
+    ok = prompt("Have the ADDRESSES been pasted? ", default='yes')
 
     if not ok == 'yes':
         print("Cancelled")
         return
 
     title = yaml_data['TITLE']
-    copy_to_clipboard(f"{title} - dates request")
+    copy_to_clipboard(f"{title} - CAN PLAY DATES REQUEST")
 
     print("""
 The email subject has been copied to the system clipboard. When you
 have pasted it into the "subject" section of your email, press
 <return> to continue to the next step.
 """)
-    ok = prompt("Continue: ", default='yes')
+    ok = prompt("Has the SUBJECT been pasted? ", default='yes')
+    if not ok == 'yes':
+        print("Cancelled")
+        return
 
     request = yaml_data['REQUEST']
     copy_to_clipboard(request)
@@ -1070,15 +1081,17 @@ The request has been copied to the system clipboard. When you
 have pasted it into the "body" section of your email, your email
 should be ready to send.
 """)
+    ok = prompt("Has the BODY of the request been pasted? ", default='yes')
+    if not ok == 'yes':
+        print("Cancelled")
+        return
+
     return default_project
 
 def deliver_schedule(default_project=""):
     print("""
 This will help you prepare an email to send the completed schedule
-for a project to the relevant players. You will need to open your
-favorite email application, create a new email and be ready to paste
-(1) the addresses, (2) the subject and (3) the body into the email.
-""")
+for a project to the relevant players.""")
 
     print("The first step is to select the project.")
     project = get_project(default_project)
@@ -1089,6 +1102,17 @@ favorite email application, create a new email and be ready to paste
     with open(project) as fo:
         yaml_data = yaml.load(fo)
 
+    print("""
+The next step is to
+(1) open your favorite email application
+(2) create a new email and
+(3) be ready to paste
+    (a) the addresses
+    (b) the subject
+    (c) the body
+into the email. You will be prompted for each paste operation in turn.
+""")
+
     ADDRESSES = yaml_data['ADDRESSES']
     addresses = ', '.join([v for k, v in ADDRESSES.items()])
     copy_to_clipboard(addresses)
@@ -1098,11 +1122,11 @@ The email addresses for the relevant players have been copied
 to the system clipboard. When you have pasted them into the "to"
 section of your email, press <return> to continue to the next step.
 """)
-    ok = prompt("Continue: ", default='yes')
+    ok = prompt("Have the ADDRESSES been pasted? ", default='yes')
 
     if not ok == 'yes':
         print("Cancelled")
-        return default_project
+        return
 
     title = yaml_data['TITLE']
     copy_to_clipboard(f"{title} - Schedule")
@@ -1112,7 +1136,10 @@ The email subject has been copied to the system clipboard. When you
 have pasted it into the "subject" section of your email, press
 <return> to continue to the next step.
 """)
-    ok = prompt("Continue: ", default='yes')
+    ok = prompt("Has the SUBJECT been pasted? ", default='yes')
+    if not ok == 'yes':
+        print("Cancelled")
+        return
 
     schedule = yaml_data['SCHEDULE']
     copy_to_clipboard(schedule)
@@ -1122,6 +1149,11 @@ The schedule has been copied to the system clipboard. When you
 have pasted it into the "body" section of your email your email
 should be ready to send.
 """)
+    ok = prompt("Has the SUBJECT been pasted? ", default='yes')
+    if not ok == 'yes':
+        print("Cancelled")
+        return
+
 
 def record_responses(default_project=""):
 
@@ -1144,9 +1176,9 @@ def record_responses(default_project=""):
     player_default = ""
     print(f"""\
 The response for a player should be 'all', 'none', 'nr' (no reply)
-or a comma separated list of dates using the month/day format.
-Asterisks can be appended to dates in which the player wants to be
-listed as a sub, e.g., '{DATES[0]}, {DATES[2]}*, {DATES[3]}'.
+or a comma separated list of CAN PLAY DATES using the month/day
+format. Asterisks can be appended to dates in which the player
+wants to be listed as a sub, e.g., '{DATES[0]}, {DATES[2]}*, {DATES[3]}'.
 
 dates: {wrap_format(", ".join(DATES))}
 player tag: {PLAYER_TAG}
