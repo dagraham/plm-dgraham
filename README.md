@@ -27,7 +27,7 @@ and, otherwise,
 
 		python3 not found
 
-If *python3* is not installed, follow the appropriate procedure for your operating system for installation.
+If *python3* is not installed, follow the appropriate installation procedure for your platform.
 
 ## Initial Setup
 

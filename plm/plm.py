@@ -60,15 +60,12 @@ def copy_to_clipboard(text):
 def openWithDefault(path):
     parts = [x.strip() for x in path.split(" ")]
     if len(parts) > 1:
-        logger.debug(f"path: {path}")
+        # logger.debug(f"path: {path}")
         res =subprocess.Popen([parts[0], ' '.join(parts[1:])], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         ok = True if res else False
     else:
         path = os.path.normpath(os.path.expanduser(path))
-        if not os.path.isfile(path):
-            print(f"path '{path}' not found")
-            return None
-        logger.debug(f"path: {path}")
+        # logger.debug(f"path: {path}")
         sys_platform = platform.system()
         if platform.system() == 'Darwin':       # macOS
             res = subprocess.run(('open', path), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -77,9 +74,10 @@ def openWithDefault(path):
         else:                                   # linux
             res = subprocess.run(('xdg-open', path), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+        # res = subprocess.run([cmd, path], check=True)
         ret_code = res.returncode
         ok = ret_code == 0
-        logger.debug(f"res: {res}; ret_code: {ret_code}")
+        # logger.debug(f"res: {res}; ret_code: {ret_code}")
     if ok:
         logger.debug(f"ok True; res: '{res}'")
     else:
@@ -220,11 +218,16 @@ def open_project(default_project=""):
     if project:
         openWithDefault(project)
 
+def open_readme():
+    help_link = "https://dagraham.github.io/plm-dgraham/"
+    openWithDefault(help_link)
+
 def main():
 
     commands = """
 commands:
     h:  show this help message
+    H:  show on-line documentation
     e:  edit 'roster.yaml' using the default text editor
     p:  create/update a project                           (1)
     a:  ask players for their "can play" dates            (2)
@@ -248,11 +251,13 @@ home directory: {plm_home}
         again = True
         while again:
             answer = input("command: ").strip()
-            if answer not in 'lhevparsdouq?':
+            if answer not in 'lhevparsdouq?H':
                 print(f"invalid command: '{answer}'")
                 print(commands)
             elif answer in ['h', '?']:
                 print(help)
+            elif answer == 'H':
+                open_readme()
             elif answer == 'u':
                 res = check_update()
                 print(res)
