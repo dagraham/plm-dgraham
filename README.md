@@ -92,58 +92,60 @@ The virtual environment only affects the terminal window in which it was activat
 
 If using a virtual environment, first change to that directory and activate the virtual environment, if necessary:
 
-    % cd ~/plm
-    % source env/bin/activate
-    (env) % plm
+		% cd ~/plm
+		% source env/bin/activate
+		(env) % plm
 
 Otherwise, just invoke *plm* directly
 
-    % plm
+		% plm
 
 Either way, you will see something like this
 
-    ~ % plm
-    Player Lineup Manager (0.1.7)
-    home directory: ~/plm
+		Player Lineup Manager (0.3.0)
+		home directory: ~/plm
 
-    commands:
-        h:  show this help message
-        e:  edit 'roster.yaml' using the default text editor
-        p:  create/update a project
-        a:  ask players for their "can play" dates
-        r:  record the "can play" responses
-        s:  schedule play using the "can play" responses
-        d:  deliver the schedule to the players
-        v:  view the current settings of a project
-        u:  check for an update to a later plm version
-        q:  quit
+		commands:
+			h:  show this help message
+			H:  show on-line documentation
+			e:  edit 'roster.yaml' using the default text editor
+			p:  create/update a project                           (1)
+			a:  ask players for their "can play" dates            (2)
+			r:  record the "can play" responses                   (3)
+			s:  schedule play using the "can play" responses      (4)
+			d:  deliver the schedule to the players               (5)
+			v:  view the current settings of a project
+			u:  check for an update to a later plm version
+			l:  clear the screen
+			q:  quit
 
-    command:
+		command:
 
 This begins a loop in which *plm* waits for you to enter a command at the prompt, processes the command and, unless the command *q* (quit) is given, waits for your next command.
 
 Note: the commands *p*, *a*, *r*, *s*, *d* and *v* begin with a request that you select the relevant project. Tab completion is available and, once a selection is made, this project becomes the *default project* for any further use of the commands in this group while the command loop continues.
 
+### The Player Directory: roster.yaml
 
-- You can now open `roster.yaml` in your favorite editor or use command *e*:
+This file is the directory for the players in all of your projects. It must be populated with all the relevant players for a project before you create the project itself.
+
+You can open `roster.yaml` in your favorite editor or use command *e*:
 
         command: e
 
-    to have *plm* open the file for you. Each line in the roster file should have the format
+to have *plm* open the file for you. Each line in the roster file should have the format
 
-        lastname, firstname: [emailaddress,  tag1, tag2, ... ]
+		lastname, firstname: [emailaddress,  tag1, tag2, ... ]
 
-    For example:
+For example:
 
-        Doaks, Steve: [stvdoaks321@gmail.com, mon, tue]
-        Smith, John: [jsmith123@gmail.com, tue, fri]
-        ...
+		Doaks, Steve: [stvdoaks321@gmail.com, mon, tue]
+		Smith, John: [jsmith123@gmail.com, tue, fri]
+		...
 
-    My schedules involve groups that play on a particular week day so I tend to use tags for the week day that the group plays, e.g., `mon` for the group that plays on *Monday*. Note that tags are case sensitive so `mon`, `Mon` and `MON` are all different tags.
+When creating a new project, you will be prompted for the tag of the players to be included so that, in the above example, the tag `mon` would include only Steve, but the tag `tue` would include both Steve and John.
 
-    When creating a new project, you will be prompted for the tag of the players to be included so that, in the above example, the tag `mon` would include only Steve, but the tag `tue` would include both Steve and John.
-
-    It is worth devoting some thought to the *tag* scheme you will use at this stage - changes made now are much easier than when projects have been created that rely upon existing tags.
+It is worth devoting some thought to the *tag* scheme you will use before you start adding players. My schedules involve groups that play on a particular week day so I tend to use tags for the week day that the group plays, e.g., `mon` for the group that plays on *Monday*. Note that tags are case sensitive so `mon`, `Mon` and `MON` are all different tags.
 
 
 ### A New Project From Start to Finish
