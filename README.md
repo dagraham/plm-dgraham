@@ -127,7 +127,7 @@ Note: the commands *p*, *a*, *r*, *s*, *d* and *v* begin with a request that you
 
 ### The Player Directory: roster.yaml
 
-This file is the directory for the players in all of your projects. It must be populated with all the relevant players for a project before you create the project itself.
+This file is the directory for the players in all of your projects. It should be populated with all the relevant players for a project before you create the project itself.
 
 You can open `roster.yaml` in your favorite editor or use command *e*:
 
