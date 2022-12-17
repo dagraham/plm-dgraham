@@ -17,15 +17,15 @@ The current version of this program automates each of the steps in this process 
 
 This program requires `python3`. To check for this requirement, open a terminal window and execute:
 
-		~ % which python3
+        ~ % which python3
 
 If *python3* is installed the response should be something like
 
-		/Library/Frameworks/Python.framework/Versions/3.10/bin/python3
+        /Library/Frameworks/Python.framework/Versions/3.10/bin/python3
 
 and, otherwise,
 
-		python3 not found
+        python3 not found
 
 If *python3* is not installed, follow the appropriate installation procedure for your platform.
 
@@ -80,46 +80,46 @@ Note that this invokes `./env/bin/pip`. Once this is finished, use pip to instal
 
 This will install *plm* and all its requirements in
 
-		./env/lib/python3.x/sitepackages
+        ./env/lib/python3.x/sitepackages
 
 and will also install an executable called `plm` in `./env/bin`. This same command can be used to update *plm* when a new version becomes available.
 
 The virtual environment only affects the terminal window in which it was activated and can be deactivated, if you wish, by using:
 
-		(env) % deactivate
+        (env) % deactivate
 
 ## Starting *plm*
 
 If using a virtual environment, first change to that directory and activate the virtual environment, if necessary:
 
-		% cd ~/plm
-		% source env/bin/activate
-		(env) % plm
+        % cd ~/plm
+        % source env/bin/activate
+        (env) % plm
 
 Otherwise, just invoke *plm* directly
 
-		% plm
+        % plm
 
 Either way, you will see something like this
 
-		Player Lineup Manager (0.3.0)
-		home directory: ~/plm
+        Player Lineup Manager (0.3.0)
+        home directory: ~/plm
 
-		commands:
-			h:  show this help message
-			H:  show on-line documentation
-			e:  edit 'roster.yaml' using the default text editor
-			p:  create/update a project                           (1)
-			a:  ask players for their "can play" dates            (2)
-			r:  record the "can play" responses                   (3)
-			s:  schedule play using the "can play" responses      (4)
-			d:  deliver the schedule to the players               (5)
-			v:  view the current settings of a project
-			u:  check for an update to a later plm version
-			l:  clear the screen
-			q:  quit
+        commands:
+            h:  show this help message
+            H:  show on-line documentation
+            e:  edit 'roster.yaml' using the default text editor
+            p:  create/update a project                           (1)
+            a:  ask players for their "can play" dates            (2)
+            r:  record the "can play" responses                   (3)
+            s:  schedule play using the "can play" responses      (4)
+            d:  deliver the schedule to the players               (5)
+            v:  view the current settings of a project
+            u:  check for an update to a later plm version
+            l:  clear the screen
+            q:  quit
 
-		command:
+        command:
 
 This begins a loop in which *plm* waits for you to enter a command at the prompt, processes the command and, unless the command *q* (quit) is given, waits for your next command.
 
@@ -135,13 +135,13 @@ You can open `roster.yaml` in your favorite editor or use command *e*:
 
 to have *plm* open the file for you. Each line in the roster file should have the format
 
-		lastname, firstname: [emailaddress,  tag1, tag2, ... ]
+        lastname, firstname: [emailaddress,  tag1, tag2, ... ]
 
 For example:
 
-		Doaks, Steve: [stvdoaks321@gmail.com, mon, tue]
-		Smith, John: [jsmith123@gmail.com, tue, fri]
-		...
+        Doaks, Steve: [stvdoaks321@gmail.com, mon, tue]
+        Smith, John: [jsmith123@gmail.com, tue, fri]
+        ...
 
 When creating a new project, you will be prompted for the tag of the players to be included so that, in the above example, the tag `mon` would include only Steve, but the tag `tue` would include both Steve and John.
 
