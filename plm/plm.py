@@ -636,7 +636,6 @@ def select(freq = {}, chosen=[], remaining=[], numplayers=4):
 
     return freq, chosen, remaining
 
-
 def create_schedule(default_project=""):
     possible = {}
     available = {}
@@ -883,7 +882,7 @@ def create_schedule(default_project=""):
    balls.
 2) A player who is scheduled to play but, for whatever reason,
    cannot play is responsible for finding a substitute and for
-   informing the other three players in his group.
+   informing the other player(s) in the group.
 
 """
 
@@ -1154,7 +1153,7 @@ The schedule has been copied to the system clipboard. When you
 have pasted it into the "body" section of your email your email
 should be ready to send.
 """)
-    ok = prompt("Has the SUBJECT been pasted? ", default='yes')
+    ok = prompt("Has the SCHEDULE been pasted? ", default='yes')
     if not ok == 'yes':
         print("Cancelled")
         return
@@ -1192,13 +1191,19 @@ player tag: {PLAYER_TAG}
     changes = ""
     while again:
         if changes:
-            print("Enter player's name or 'q' to quit and (optionally) save changes.")
+            print("Enter player's name, 'r' to show current responses or 'q' to quit and (optionally) save changes.")
         else:
-            print("Enter player's name or 'q' to quit.")
+            print("Enter player's name, 'r' to show current responses or 'q' to quit.")
         player = prompt("player: ", completer=players).strip()
         if player == 'q':
             again = False
             continue
+        if player == 'r':
+            # show responses recorded thus far
+            for key, value in RESPONSES.items():
+                print(f"{key}: {value}")
+            continue
+
         if player not in RESPONSES:
             print(f"{player} not found, continuing ...")
             continue
