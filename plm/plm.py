@@ -1174,7 +1174,7 @@ def record_responses(default_project=""):
     DATES = yaml_data['DATES']
     PLAYER_TAG = yaml_data['PLAYER_TAG']
 
-    players = FuzzyWordCompleter([x for x in RESPONSES])
+    players = FuzzyWordCompleter([x for x in RESPONSES] + ['.', '?'])
 
     again = True
     player_default = ""
@@ -1191,14 +1191,14 @@ player tag: {PLAYER_TAG}
     changes = ""
     while again:
         if changes:
-            print("Enter player's name, 'r' to show current responses or 'q' to quit and (optionally) save changes.")
+            print("Enter player's name, '?' to review current responses or '.' to quit and (optionally) save changes.")
         else:
-            print("Enter player's name, 'r' to show current responses or 'q' to quit.")
+            print("Enter player's name, '?' to review current responses or '.' to quit.")
         player = prompt("player: ", completer=players).strip()
-        if player == 'q':
+        if player == '.':
             again = False
             continue
-        if player == 'r':
+        if player == '?':
             # show responses recorded thus far
             for key, value in RESPONSES.items():
                 print(f"{key}: {value}")
