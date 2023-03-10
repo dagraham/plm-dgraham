@@ -14,6 +14,7 @@ import pyperclip
 from pprint import pprint
 import calendar
 import textwrap
+from termcolor import colored
 
 import ruamel.yaml
 from ruamel.yaml import YAML
@@ -1200,8 +1201,15 @@ player tag: {PLAYER_TAG}
             continue
         if player == '?':
             # show responses recorded thus far
+            count = 0
             for key, value in RESPONSES.items():
-                print(f"{key}: {value}")
+                if value == 'nr':
+                    count += 1
+                    print(colored(f"{key}: {value}", 'green'))
+                else:
+                    print(f"{key}: {value}")
+            if count:
+                print(colored(f"not yet responded: {count}", 'yellow'))
             continue
 
         if player not in RESPONSES:
