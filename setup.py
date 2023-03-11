@@ -29,6 +29,7 @@ REQUIRED = [
         "pendulum>=2.0.4",
         "requests>=2.25.1",
         "pyperclip>=1.7.0",
+        "termcolor>=2.2.0",
 ]
 
 # What packages are optional?
