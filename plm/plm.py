@@ -233,8 +233,9 @@ commands:
     p:  create/update a project                           (1)
     a:  ask players for their "can play" dates            (2)
     r:  record the "can play" responses                   (3)
-    s:  schedule play using the "can play" responses      (4)
-    d:  deliver the schedule to the players               (5)
+    n:  nag players to submit can play responses          (4)
+    s:  schedule play using the "can play" responses      (5)
+    d:  deliver the schedule to the players               (6)
     v:  view the current settings of a project
     u:  check for an update to a later plm version
     l:  clear the screen
@@ -252,7 +253,7 @@ home directory: {plm_home}
         again = True
         while again:
             answer = input("command: ").strip()
-            if answer not in 'lhevparsdouq?H':
+            if answer not in 'lhevpnarsdouq?H':
                 print(f"invalid command: '{answer}'")
                 print(commands)
             elif answer in ['h', '?']:
@@ -276,6 +277,8 @@ home directory: {plm_home}
                     default_project = create_project(default_project)
                 elif answer == 'a':
                     default_project = ask_players(default_project)
+                elif answer == 'n':
+                    default_project = nag_players(default_project)
                 elif answer == 'r':
                     default_project = record_responses(default_project)
                 elif answer == 's':
@@ -545,7 +548,7 @@ NUM_PLAYERS: {numplayers}
 REQUEST: |
     It's time to set the schedule for these dates in {years}:
 
-        {textwrap.fill(dates, width=60, initial_indent='', subsequent_indent=' '*8)}
+        {textwrap.fill(dates, width=80, initial_indent='', subsequent_indent=' '*8)}
 
     Please make a note on your calendars to email me the DATES YOU
     CAN PLAY from this list no later than {rep_date}.
@@ -565,7 +568,44 @@ REQUEST: |
 
     Short responses:
 
-        none: you CANNOT play on any of the dates - equivalent to a
+        none: you CAN play on none of the dates - equivalent to a
+              list without any dates
+
+        all:  you CAN play on all of the dates - equivalent to a
+              list with all of the dates
+
+        sub:  you want to be listed as a possible substitute on all of the
+            dates - equivalent to a list of all of the dates with
+            asterisks appended to each date
+
+    Thanks,
+
+NAG: |
+    You are receiving this letter because I have not yet received a list of
+    the dates you can play from:
+
+        {textwrap.fill(dates, width=80, initial_indent='', subsequent_indent=' '*8)}
+
+    Please remember that your list is due no later than {rep_date}.
+
+    ___
+    From my original request ...
+
+    It would help me to copy and paste from your email if you would
+    list your dates on one line, separated by commas in the same format
+    as the list above. E.g., using {eg_yes}, not {eg_no}.
+
+    If you want to be listed as a possible substitute for any of these
+    dates, then append asterisks to the relevant dates. If, for
+    example, you can play on {DATES[0]} and {DATES[3]} and also want to
+    be listed as a possible substitute on {DATES[2]}, then your response
+    should be
+
+        {DATES[0]}, {DATES[2]}*, {DATES[3]}
+
+    Short responses:
+
+        none: you CAN play on none of the dates - equivalent to a
               list without any dates
 
         all:  you CAN play on all of the dates - equivalent to a
@@ -1029,7 +1069,7 @@ dates on which a court is scheduled have asterisks.
 
 def ask_players(default_project=""):
     print("""
-This will help you prepare an email to request cannot play dates
+This will help you prepare an email to request can play dates
 from the relevant players.""")
 
     print("The first step is to select the project.")
@@ -1083,6 +1123,73 @@ have pasted it into the "subject" section of your email, press
 
     print("""
 The request has been copied to the system clipboard. When you
+have pasted it into the "body" section of your email, your email
+should be ready to send.
+""")
+    ok = prompt("Has the BODY of the request been pasted? ", default='yes')
+    if not ok == 'yes':
+        print("Cancelled")
+        return
+
+    return default_project
+
+def nag_players(default_project=""):
+    print("""
+This will help you prepare an email to nag players for their can
+play dates from the relevant players.""")
+
+    print("The first step is to select the project.")
+    project = get_project(default_project)
+    if not project:
+        print("Cancelled")
+        return
+    default_project = os.path.split(project)[1]
+    with open(project) as fo:
+        yaml_data = yaml.load(fo)
+
+    print("""The next step is to
+1) open your favorite email application,
+2) create a new email and
+3) be ready to paste
+  (a) the addresses
+  (b) the subject
+  (c) the body
+into the email. You will be prompted for each paste operation in turn.
+""")
+    ADDRESSES = yaml_data['ADDRESSES']
+    RESPONSES = yaml_data['RESPONSES']
+    addresses = ', '.join([v for k, v in ADDRESSES.items() if RESPONSES[k] == 'nr'])
+    copy_to_clipboard(addresses)
+
+    print("""
+The email addresses for the relevant players have been copied
+to the system clipboard. When you have pasted them into the "to"
+section of your email, press <return> to continue to the next step.
+""")
+    ok = prompt("Have the ADDRESSES been pasted? ", default='yes')
+
+    if not ok == 'yes':
+        print("Cancelled")
+        return
+
+    title = yaml_data['TITLE']
+    copy_to_clipboard(f"{title} - CAN PLAY DATES REMINDER")
+
+    print("""
+The email subject has been copied to the system clipboard. When you
+have pasted it into the "subject" section of your email, press
+<return> to continue to the next step.
+""")
+    ok = prompt("Has the SUBJECT been pasted? ", default='yes')
+    if not ok == 'yes':
+        print("Cancelled")
+        return
+
+    request = yaml_data['NAG']
+    copy_to_clipboard(request)
+
+    print("""
+The reminder has been copied to the system clipboard. When you
 have pasted it into the "body" section of your email, your email
 should be ready to send.
 """)
@@ -1192,9 +1299,9 @@ player tag: {PLAYER_TAG}
     changes = ""
     while again:
         if changes:
-            print("Enter player's name, '?' to review current responses or '.' to quit and (optionally) save changes.")
+            print("Enter player's name, '?' to review current responses\nor '.' to stop recording responses and (optionally) save changes.")
         else:
-            print("Enter player's name, '?' to review current responses or '.' to quit.")
+            print("Enter player's name, '?' to review current responses\nor '.' to stop recording responses.")
         player = prompt("player: ", completer=players).strip()
         if player == '.':
             again = False
