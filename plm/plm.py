@@ -88,13 +88,17 @@ def openWithDefault(path):
 
 
 def get_project(default_project=""):
+    # clear_screen()
+    project = os.path.split(default_project)[1] if default_project else ""
+    print("Select the active project.")
     possible = [x for x in os.listdir(plm_projects) if os.path.splitext(x)[1] == '.yaml']
     possible.sort()
     completer = FuzzyWordCompleter(possible)
-    proj = prompt("project: ", completer=completer, default=default_project).strip()
+    proj = prompt("project: ", completer=completer, default=project).strip()
     proj = proj if proj.endswith('.yaml') else proj + '.yaml'
     project = os.path.join(plm_projects, proj)
     if os.path.isfile(project):
+        clear_screen()
         return project
     else:
         print(f"project '{project}' not found")
@@ -224,13 +228,16 @@ def open_readme():
     openWithDefault(help_link)
 
 def main():
+    default_project = clear_screen(default_project="")
+    project = "{default_project}" if default_project else "not yet selected"
 
     commands = """
 commands:
     h:  show this help message
     H:  show on-line documentation
     e:  edit 'roster.yaml' using the default text editor
-    p:  create/update a project                           (1)
+    c:  create/update a project                           (1)
+    p:  select the active project from existing projects  (1)
     a:  ask players for their "can play" dates            (2)
     r:  record the "can play" responses                   (3)
     n:  nag players to submit can play responses          (4)
@@ -238,31 +245,42 @@ commands:
     d:  deliver the schedule to the players               (6)
     v:  view the current settings of a project
     u:  check for an update to a later plm version
-    l:  clear the screen
     q:  quit
 """
 
-    help = f"""\
-Player Lineup Manager ({plm_version})
-home directory: {plm_home}
-{commands}"""
+    # help = f"""\
+# Player Lineup Manager ({plm_version})
+# home directory: {plm_home}
+# selected project: {project}
+# {commands}"""
 
-    print(help)
-    default_project = ""
     try:
         again = True
         while again:
+            if default_project:
+                project = os.path.split(default_project)[1]
+            else:
+                project = """\
+The active project has not yet been chosen.
+Use command 'c' to create one or 'p' to select one.
+"""
+            help = f"""\
+Player Lineup Manager ({plm_version})
+home directory: {plm_home}
+project: {project}
+{commands}"""
+            print(help)
             answer = input("command: ").strip()
-            if answer not in 'lhevpnarsdouq?H':
+            if answer not in 'clhevpnarsdouq?H':
                 print(f"invalid command: '{answer}'")
                 print(commands)
             elif answer in ['h', '?']:
-                print(help)
+                clear_screen()
             elif answer == 'H':
                 open_readme()
             elif answer == 'u':
                 res = check_update()
-                print(res)
+                print(f"\n{res}\n")
             elif answer == 'q':
                 again = False
                 print("quitting plm ...")
@@ -273,8 +291,10 @@ home directory: {plm_home}
                     default_project = open_project(default_project)
                 elif answer == 'v':
                     default_project = view_project(default_project)
-                elif answer == 'p':
+                elif answer == 'c':
                     default_project = create_project(default_project)
+                elif answer == 'p':
+                    default_project = get_project(default_project)
                 elif answer == 'a':
                     default_project = ask_players(default_project)
                 elif answer == 'n':
@@ -287,9 +307,9 @@ home directory: {plm_home}
                     default_project = deliver_schedule(default_project)
                 elif answer == 'l':
                     default_project = clear_screen(default_project)
-                    print(help)
-                if default_project:
-                    print(f"default project: {default_project}")
+                    # print(help)
+                # if default_project:
+                #     print(f"default project: {default_project}")
 
     except KeyboardInterrupt:
         play = False
@@ -318,26 +338,27 @@ def check_update():
     return res
 
 def view_project(default_project=""):
+    if not default_project:
+        print("The first step is to select the project.")
+        default_project = get_project(default_project)
+        if not default_project:
+            print("Cancelled")
+            return
 
-    print("Select the project to be viewed.")
-    project = get_project(default_project)
-    if not project:
-        print("Cancelled")
-        return default_project
-    with open(project) as fo:
+    with open(default_project) as fo:
         lines = fo.readlines()
-    project_name = os.path.split(project)[1]
+    project_name = os.path.split(default_project)[1]
     border_length = min(18, (COLUMNS - len(project_name) - 10)//2)
     markers = "="*border_length
     print(f"{markers} begin {project_name} {markers}")
     print("".join(lines))
     print(f"{markers}= end {project_name} ={markers}")
 
-    return os.path.split(project)[1]
+    return default_project
 
 
 def create_project(default_project=""):
-    # Create prompt object.
+    clear_screen()
     session = PromptSession()
     problems = []
     if not os.path.exists(plm_roster):
@@ -345,6 +366,7 @@ def create_project(default_project=""):
     if not os.path.exists(plm_projects) or not os.path.isdir(plm_projects):
         problems.append(f"Either {plm_projects} does not exist or it is not a directory")
     if problems:
+        print(f"problems: {problems}")
         sys.exit(problems)
 
     with open(plm_roster, 'r') as fo:
@@ -380,18 +402,18 @@ def create_project(default_project=""):
     proj = prompt("project: ", completer=completer, default=default_project).strip()
     if not proj:
         sys.exit("canceled")
-    default_project = proj
 
 
     project_name = os.path.join(plm_projects, proj)
 
     project_file = os.path.join(plm_projects, os.path.splitext(project_name)[0] + '.yaml')
+    default_project = project_file
 
     if os.path.exists(project_file):
         print(f"using defaults from the existing: {project_file}")
         ok = session.prompt(f"modify {project_file}: [Yn] ").strip()
         if ok.lower() == 'n':
-            sys.exit("canceled")
+            return default_project
         # get defaults from existing project file
         with open(project_file, 'r') as fo:
             yaml_data = yaml.load(fo)
@@ -533,7 +555,7 @@ Play will also be limited to {weekdays[day]}s falling on or before the
     eg_yes = eg_day.format("M/D")
     eg_no = eg_day.format("MMMM D")
 
-    tmpl = f"""# created by plm -p
+    tmpl = f"""# created by plm -c
 TITLE: {title}
 PLAYER_TAG: {tag}
 REPLY_BY: {reply_formatted}
@@ -678,6 +700,15 @@ def select(freq = {}, chosen=[], remaining=[], numplayers=4):
     return freq, chosen, remaining
 
 def create_schedule(default_project=""):
+    if not default_project:
+        print("The first step is to select the project.")
+        default_project = get_project(default_project)
+        if not default_project:
+            print("Cancelled")
+            return
+    with open(default_project) as fo:
+        yaml_data = yaml.load(fo)
+
     possible = {}
     available = {}
     availabledates = {}
@@ -703,19 +734,10 @@ def create_schedule(default_project=""):
     project_hsh = {}
     courts_scheduled = {}
     session = PromptSession()
-    proj_path = get_project(default_project)
+    proj_path = default_project
     now = pendulum.now()
     cur_year = now.year
     cur_month = now.month
-    if not proj_path:
-        print("Cancelled")
-        return
-    if not os.path.isfile(proj_path):
-        print(f"project '{proj_path}' not found")
-        return
-    default_project = os.path.split(proj_path)[1]
-    with open(proj_path, 'r') as fo:
-        yaml_data = yaml.load(fo)
 
     TITLE = yaml_data['TITLE']
     responses = yaml_data['RESPONSES']
@@ -1058,7 +1080,7 @@ dates on which a court is scheduled have asterisks.
 
     yaml_data['SCHEDULE'] = schedule
 
-    with open(proj_path, 'w') as fn:
+    with open(default_project, 'w') as fn:
         # yaml.default_flow_style = None
         # yaml.indent(mapping=2, sequence=4, offset=2)
         yaml.dump(yaml_data, fn)
@@ -1068,17 +1090,18 @@ dates on which a court is scheduled have asterisks.
 
 
 def ask_players(default_project=""):
+    if not default_project:
+        print("The first step is to select the project.")
+        default_project = get_project(default_project)
+        if not default_project:
+            print("Cancelled")
+            return
+    clear_screen()
     print("""
 This will help you prepare an email to request can play dates
 from the relevant players.""")
 
-    print("The first step is to select the project.")
-    project = get_project(default_project)
-    if not project:
-        print("Cancelled")
-        return
-    default_project = os.path.split(project)[1]
-    with open(project) as fo:
+    with open(default_project) as fo:
         yaml_data = yaml.load(fo)
 
     print("""The next step is to
@@ -1268,13 +1291,13 @@ should be ready to send.
 
 
 def record_responses(default_project=""):
-
-    project = get_project(default_project)
-    if not project:
-        print("Cancelled")
-        return default_project
-    default_project = os.path.split(project)[1]
-    with open(project) as fo:
+    if not default_project:
+        print("The first step is to select the project.")
+        default_project = get_project(default_project)
+        if not default_project:
+            print("Cancelled")
+            return
+    with open(default_project) as fo:
         yaml_data = yaml.load(fo)
 
 
@@ -1287,6 +1310,8 @@ def record_responses(default_project=""):
     again = True
     player_default = ""
     print(f"""\
+Entering responses for project {os.path.split(default_project)[1]}
+
 The response for a player should be 'all', 'none', 'nr' (no reply)
 or a comma separated list of CAN PLAY DATES using the month/day
 format. Asterisks can be appended to dates in which the player
@@ -1298,10 +1323,14 @@ player tag: {PLAYER_TAG}
 
     changes = ""
     while again:
+
         if changes:
-            print("Enter player's name, '?' to review current responses\nor '.' to stop recording responses and (optionally) save changes.")
-        else:
-            print("Enter player's name, '?' to review current responses\nor '.' to stop recording responses.")
+            with open(default_project, 'w') as fn:
+                yaml.dump(yaml_data, fn)
+            print(f"saved changes: {changes}")
+            changes = ""
+
+        print("Enter player's name, '?' to review current responses\nor '.' to stop recording responses.")
         player = prompt("player: ", completer=players).strip()
         if player == '.':
             again = False
@@ -1363,17 +1392,6 @@ player tag: {PLAYER_TAG}
             if new != default:
                 changes += f"  {player}: {new}\n"
 
-    if changes:
-        print(f"Changes:\n{changes}")
-        ok = prompt("Save changes: [Yn] ").strip()
-        if ok.lower() == 'n':
-            sys.exit("changes discarded")
-        with open(project, 'w') as fn:
-            # yaml.default_flow_style = None
-            # yaml.indent(mapping=2, sequence=4, offset=2)
-            yaml.dump(yaml_data, fn)
-    else:
-        print("no changes to save")
     return default_project
 
 
