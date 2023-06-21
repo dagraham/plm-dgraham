@@ -63,7 +63,7 @@ Now run:
 
     $ pipx ensurepath
 
-to ensure that directories necessary for *pipx* operation are in your PATH environment variable and finally to install *etm* itself:
+to ensure that directories necessary for *pipx* operation are in your PATH environment variable and finally to install *plm* itself:
 
     $ pipx install plm-dgraham
 
