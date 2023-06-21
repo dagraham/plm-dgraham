@@ -53,77 +53,55 @@ and then install *plm* itself
 
 This will install *plm* and any needed supporting python modules. This same can also also be used to update *plm* when a new version becomes available.
 
-### For use in a virtual environment
+### For use in an isolated environment {#For-use-in-an-isolated-environment}
 
-Setting up a virtual environment for *plm* is only slightly more complicated. The steps for OS/X or linux are illustrated below. For details see [python-virtual-environments-a-primer](https://www.google.com/url?q=https%3A%2F%2Frealpython.com%2Fpython-virtual-environments-a-primer%2F&sa=D&sntz=1&usg=AFQjCNFh7QpJQ4rPCDjZ1eLrV1BRCCpSmw).
+Installing etm in an isolated or virtual environment (sandbox) is only slightly more complicated. Begin by using *pip* to install *pipx*:
 
-Open a terminal and begin by creating a new directory/folder for the virtual environment, say `plm-pypi`, in your home directory:
+    $ python3 -m pip install -U pipx
 
-        % mkdir ~/plm-pypi
-        % cd ~/plm-pypi
+Now run:
 
-Now continue by creating the virtual environment:
+    $ pipx ensurepath
 
-        % python3 -m venv env
+to ensure that directories necessary for *pipx* operation are in your PATH environment variable and finally to install *etm* itself:
 
-After a few seconds you will have a new `./env` directory. Now activate the virtual environment:
+    $ pipx install plm-dgraham
 
-        % source env/bin/activate
-
-The prompt will now change to something containing `(env)` to indicate that the virtual environment is active. Updating pip is now recommended:
-
-        (env) % pip install -U pip
-
-Note that this invokes `./env/bin/pip`. Once this is finished, use pip to install etm:
-
-        (env) % pip install -U plm-dgraham
-
-This will install *plm* and all its requirements in
-
-        ./env/lib/python3.x/sitepackages
-
-and will also install an executable called `plm` in `./env/bin`. This same command can be used to update *plm* when a new version becomes available.
-
-The virtual environment only affects the terminal window in which it was activated and can be deactivated, if you wish, by using:
-
-        (env) % deactivate
+To upgrade *etm* when a new version becomes available, simply replace "install" in this command with "upgrade".
 
 ## Starting *plm*
 
-If using a virtual environment, first change to that directory and activate the virtual environment, if necessary:
+Either way, you can then start *etm* with
 
-        % cd ~/plm
-        % source env/bin/activate
-        (env) % plm
+    $ plm <path to home>
 
-Otherwise, just invoke *plm* directly
+and you will see something like this
 
-        % plm
-
-Either way, you will see something like this
-
-        Player Lineup Manager (0.3.0)
+        Player Lineup Manager (0.3.4)
         home directory: ~/plm
+        project: The active project has not yet been chosen.
+        Use command 'c' to create one or 'p' to select one.
 
         commands:
             h:  show this help message
             H:  show on-line documentation
             e:  edit 'roster.yaml' using the default text editor
-            p:  create/update a project                           (1)
+            c:  create/update a project                           (1)
+            p:  select the active project from existing projects  (1)
             a:  ask players for their "can play" dates            (2)
             r:  record the "can play" responses                   (3)
-            s:  schedule play using the "can play" responses      (4)
-            d:  deliver the schedule to the players               (5)
+            n:  nag players to submit can play responses          (4)
+            s:  schedule play using the "can play" responses      (5)
+            d:  deliver the schedule to the players               (6)
             v:  view the current settings of a project
             u:  check for an update to a later plm version
-            l:  clear the screen
             q:  quit
 
         command:
 
 This begins a loop in which *plm* waits for you to enter a command at the prompt, processes the command and, unless the command *q* (quit) is given, waits for your next command.
 
-Note: the commands *p*, *a*, *r*, *s*, *d* and *v* begin with a request that you select the relevant project. Tab completion is available and, once a selection is made, this project becomes the *default project* for any further use of the commands in this group while the command loop continues.
+Note: the commands *a*, *r*, *s*, *d* and *v* begin with a request that you select the *active project* if you have not already done so with either *c* or *p*. Tab completion is available and, once a selection is made, this project becomes the *active project* for any further use of the commands in this group while the command loop continues.
 
 ### The Player Directory: roster.yaml
 
@@ -152,9 +130,9 @@ It is worth devoting some thought to the *tag* scheme you will use before you st
 
 #### 1. Create the project file
 
-Start *plm*, if necessary, and use the *project* command:
+Start *plm*, if necessary, and use the *create project* command:
 
-        command: p
+        command: c
 
 Then follow the on-line prompts to enter the project information. This information will be stored in a new file in the projects directory, `<project_name>.yaml`, where `<project_name>` is the name you provide for the project. A short name that sorts well and is suggestive is recommended, e.g., `2022-4Q-TU`.
 
