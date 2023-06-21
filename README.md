@@ -55,7 +55,7 @@ This will install *plm* and any needed supporting python modules. This same can 
 
 ### For use in an isolated environment {#For-use-in-an-isolated-environment}
 
-Installing etm in an isolated or virtual environment (sandbox) is only slightly more complicated. Begin by using *pip* to install *pipx*:
+Installing plm in an isolated or virtual environment (sandbox) is only slightly more complicated. Begin by using *pip* to install *pipx*:
 
     $ python3 -m pip install -U pipx
 
@@ -67,11 +67,11 @@ to ensure that directories necessary for *pipx* operation are in your PATH envir
 
     $ pipx install plm-dgraham
 
-To upgrade *etm* when a new version becomes available, simply replace "install" in this command with "upgrade".
+To upgrade *plm* when a new version becomes available, simply replace "install" in this command with "upgrade".
 
 ## Starting *plm*
 
-Either way, you can then start *etm* with
+Either way, you can then start *plm* with
 
     $ plm <path to home>
 
