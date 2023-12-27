@@ -421,11 +421,14 @@ def view_project(default_project=''):
     with open(default_project) as fo:
         lines = fo.readlines()
     project_name = os.path.split(default_project)[1]
-    border_length = min(18, (COLUMNS - len(project_name) - 10) // 2)
-    markers = '=' * border_length
-    print(f'{markers} begin {project_name} {markers}')
-    print(''.join(lines))
-    print(f'{markers}= end {project_name} ={markers}')
+    border_length = min(18, (COLUMNS - len(project_name)) // 2)
+    markers = '∨' * border_length
+    clear_screen(default_project)
+    print(colored(f'{markers} begin {project_name} {markers}', 'green'))
+    # print(f'{markers}= begin {project_name} {markers}')
+    print(''.join(lines).rstrip())
+    markers = '∧' * border_length
+    print(colored(f'{markers} end {project_name} {markers}\n', 'green'))
 
     return default_project
 
@@ -716,7 +719,7 @@ Play will also be limited to {weekdays[day]}s falling on or before the "ending d
     ALL = 'all' if can_play == 'y' else 'any'
     AND = 'and also' if can_play == 'y' else 'but'
 
-    tmpl = f"""# created by plm -c
+    tmpl = f"""# created by plm - Player Lineup Manager
 TITLE: {title}
 PLAYER_TAG: {tag}
 REPLY_BY: {reply_formatted}
@@ -1602,7 +1605,7 @@ def record_responses(default_project=''):
         yaml_data = yaml.load(fo)
 
     RESPONSES = yaml_data['RESPONSES']
-    CAN = 'CAN' if yaml_data['CAN'] == 'y' else 'CANNOT'
+    CAN = 'CAN' if yaml_data.get('CAN', 'y') == 'y' else 'CANNOT'
     DATES = yaml_data['DATES']
     PLAYER_TAG = yaml_data['PLAYER_TAG']
 
@@ -1628,10 +1631,24 @@ player tag: {PLAYER_TAG}
     while again:
 
         if changes:
+            clear_screen(default_project)
             with open(default_project, 'w') as fn:
                 yaml.dump(yaml_data, fn)
             print(f'saved changes: {changes}')
             changes = ''
+            # show responses recorded thus far
+            count = 0
+            print(colored(f'Responses are for {CAN} PLAY dates', 'yellow'))
+            for key, value in RESPONSES.items():
+                if value == 'nr':
+                    count += 1
+                    print(colored(f'{key}: {value}', 'yellow'))
+                else:
+                    print(colored(f'{key}: {value}', 'green'))
+                    # print(f'{key}: {value}')
+            if count:
+                print(colored(f'not yet responded: {count}', 'red'))
+            continue
 
         print(
             "Enter player's name, '?' to review current responses\nor '.' to stop recording responses."
@@ -1642,15 +1659,18 @@ player tag: {PLAYER_TAG}
             continue
         if player == '?':
             # show responses recorded thus far
+            clear_screen(default_project)
+            print(colored(f'Responses are for {CAN} PLAY dates', 'yellow'))
             count = 0
             for key, value in RESPONSES.items():
                 if value == 'nr':
                     count += 1
-                    print(colored(f'{key}: {value}', 'green'))
+                    print(colored(f'{key}: {value}', 'yellow'))
                 else:
-                    print(f'{key}: {value}')
+                    print(colored(f'{key}: {value}', 'green'))
+                    # print(f'{key}: {value}')
             if count:
-                print(colored(f'not yet responded: {count}', 'yellow'))
+                print(colored(f'not yet responded: {count}', 'red'))
             continue
 
         if player not in RESPONSES:
@@ -1669,7 +1689,7 @@ player tag: {PLAYER_TAG}
                 elif response == 'none':
                     RESPONSES[player] = 'none'
                 elif response == 'all':
-                    aRESPONSES[player] = 'all'
+                    RESPONSES[player] = 'all'
                 elif response == 'sub':
                     RESPONSES[player] = 'sub'
                 else:   # comma separated list of dates
@@ -1696,6 +1716,7 @@ player tag: {PLAYER_TAG}
                 new = ', '.join(new)
             if new != default:
                 changes += f'  {player}: {new}\n'
+        player = '?'
 
     return default_project
 

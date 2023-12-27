@@ -136,23 +136,27 @@ Start *plm*, if necessary, and use the *create project* command:
 
 Then follow the on-line prompts to enter the project information. This information will be stored in a new file in the projects directory, `<project_name>.yaml`, where `<project_name>` is the name you provide for the project. A short name that sorts well and is suggestive is recommended, e.g., `2022-4Q-TU`.
 
+The value of `CAN` in the project settings affects both the request for player dates and the interpretation of the dates:
 
-#### 2. Request players' availability dates
+- When `CAN == y` (the default) the request is for a list of dates on which the player **CAN** play.
+- When `CAN == n` the request is for a list of dates on which the player **CANNOT** play.
 
-With the project file created, the next step is to request the "can play" dates from the players. To do this start *plm*, if necessary, and use the *ask* command:
+#### 2. Request player dates
+
+With the project file created, the next step is to request the "CAN" or "CANNOT" play dates from the players (depending upon the setting for `CAN`). To do this start *plm*, if necessary, and use the *ask* command:
 
         command: a
 
 You will be advised to open your favorite email application and create a new, empty email. You will then be prompted to select the relevant project. Tab completion is available to choose the project you created in the previous step. When you have selected the project, you will then be advised that the relevant email addresses have been copied to the system clipboard. Paste these into the "To" section of your new email and then press *return* in *plm* to continue. You will next be advised that the relevant subject has been copied to the system clipboard. Paste this into the "Subject" section of your email and again press *return* in *plm* to continue. You will finally be advised that the body of the request email has been copied to the system clipboard for you to paste into your email. When you are satisfied with the result, you can send the completed email.
 
 
-#### 3. Enter player "can play" responses
+#### 3. Enter player responses
 
 As you receive responses, you can start *plm*, if necessary, and use the *record* command:
 
         command: r
 
-Again you will be prompted to choose the relevant project with tab completion available. This begins a loop in which you can choose a player using tab completion and then enter the player's response to the "can play" dates query. The response for a player can be 'all', 'none', 'nr' (no response) or a comma separated list of dates using the month/day format. Asterisks can be appended to dates in which the player wants to be listed as a sub, e.g., '10/4, 10/18*, 10/25' for can play on 10/4 or 10/25 and might be able to subsitute on 10/18. This process continues until you enter a 'q' to end the loop and, if changes have been made, indicate whether or not you would like to save them. This entry process can be repeated as often as you like until you are satisfied that all responses have been correctly entered.
+Again you will be prompted to choose the relevant project with tab completion available. This begins a loop in which you can choose a player using tab completion and then enter the player's response to the dates request. The response for a player can be 'all', 'none', 'nr' (no response) or a comma separated list of dates using the month/day format. Asterisks can be appended to dates in which the player wants to be listed as a sub, e.g., '10/4, 10/18*, 10/25' for can or cannot play on 10/4 or 10/25 (depending upon `CAN`) and might be able to subsitute on 10/18. This process continues until you enter a 'q' to end the loop and, if changes have been made, indicate whether or not you would like to save them. This entry process can be repeated as often as you like until you are satisfied that all responses have been correctly entered.
 
 Hint: you can have *plm* running in a terminal window near your email program with the `r` command activated so that when you get a reply from say, Joe Smith, you can just enter "j" at the prompt to choose "Joe Smith" using auto completion and then enter his reply. This is handy because the replies will, at best, arrive sporadically.
 
