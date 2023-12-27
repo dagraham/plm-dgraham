@@ -23,13 +23,12 @@ VERSION = version
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-        "prompt-toolkit>=3.0.24",
-        "ruamel.yaml>=0.15.88",
-        "python-dateutil>=2.7.3",
-        "pendulum>=2.0.4",
-        "requests>=2.25.1",
-        "pyperclip>=1.7.0",
-        "termcolor>=2.2.0",
+    'prompt-toolkit>=3.0.24',
+    'ruamel.yaml>=0.15.88',
+    'python-dateutil>=2.7.3',
+    'requests>=2.25.1',
+    'pyperclip>=1.7.0',
+    'termcolor>=2.2.0',
 ]
 
 # What packages are optional?
@@ -55,31 +54,43 @@ except FileNotFoundError:
 # Load the package's __version__.py module as a dictionary.
 about = {}
 if not VERSION:
-    project_slug = NAME.lower().replace("-", "_").replace(" ", "_")
+    project_slug = NAME.lower().replace('-', '_').replace(' ', '_')
     with open(os.path.join(here, project_slug, '__version__.py')) as f:
         exec(f.read(), about)
-    CLASSIFIERS = ["Development Status :: 2 - Pre-Alpha", ]
+    CLASSIFIERS = [
+        'Development Status :: 2 - Pre-Alpha',
+    ]
 else:
     about['__version__'] = VERSION
     if 'a' in VERSION:
-        CLASSIFIERS = ["Development Status :: 3 - Alpha", ]
+        CLASSIFIERS = [
+            'Development Status :: 3 - Alpha',
+        ]
     elif 'b' in VERSION:
-        CLASSIFIERS = ["Development Status :: 4 - Beta", ]
+        CLASSIFIERS = [
+            'Development Status :: 4 - Beta',
+        ]
     else:
-        CLASSIFIERS = ["Development Status :: 5 - Production/Stable", ]
+        CLASSIFIERS = [
+            'Development Status :: 5 - Production/Stable',
+        ]
 
-    CLASSIFIERS.extend([
-        'Environment :: Console',
-        'Intended Audience :: End Users/Desktop',
-        'License :: OSI Approved :: GNU General Public License (GPL)',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: Implementation :: CPython',
-        'Programming Language :: Python :: Implementation :: PyPy',
-        'Topic :: Office/Business',
-        'Topic :: Office/Business :: News/Diary',
-        'Topic :: Office/Business :: Scheduling'])
+    CLASSIFIERS.extend(
+        [
+            'Environment :: Console',
+            'Intended Audience :: End Users/Desktop',
+            'License :: OSI Approved :: GNU General Public License (GPL)',
+            'Programming Language :: Python',
+            'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8',
+            'Programming Language :: Python :: Implementation :: CPython',
+            'Programming Language :: Python :: Implementation :: PyPy',
+            'Topic :: Office/Business',
+            'Topic :: Office/Business :: News/Diary',
+            'Topic :: Office/Business :: Scheduling',
+        ]
+    )
+
 
 class UploadCommand(Command):
     """Support setup.py upload."""
@@ -103,20 +114,26 @@ class UploadCommand(Command):
             self.status('Removing previous builds…')
             rmtree(os.path.join(here, 'dist'))
         except OSError as e:
-            print("error removing dist tree:", e)
+            print('error removing dist tree:', e)
 
         self.status('Building Source and Wheel (universal) distribution…')
-        os.system('{0} setup.py sdist bdist_wheel --universal'.format(sys.executable))
+        os.system(
+            '{0} setup.py sdist bdist_wheel --universal'.format(sys.executable)
+        )
 
         self.status('Uploading the package to PyPI via Twine…')
-        os.system('twine upload --verbose --repository-url https://upload.pypi.org/legacy/ dist/*')
+        os.system(
+            'twine upload --verbose --repository-url https://upload.pypi.org/legacy/ dist/*'
+        )
 
         sys.exit()
 
+
 # read the contents of your README file
 from pathlib import Path
+
 this_directory = Path(__file__).parent
-long_description = (this_directory / "README.md").read_text()
+long_description = (this_directory / 'README.md').read_text()
 
 # Where the magic happens:
 setup(
@@ -147,4 +164,3 @@ setup(
         'upload': UploadCommand,
     },
 )
-
