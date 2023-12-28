@@ -130,14 +130,11 @@ if new_version:
     )
     if res:
         print(res)
-        print('Use ./upload_sdist.sh to upload to PyPi')
-
         ans = input('upload sdist to PyPi using twine? [yN] ')
         if ans.lower() != 'y':
             print('cancelled')
             sys.exit()
-        ok, res = check_output(
-            f'./upload_sdist.sh'
+        ok, res = check_output('./upload_sdist.sh')
         if res:
             print(res)
 
