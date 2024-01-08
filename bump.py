@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-import pendulum
+from datetime import datetime
 import sys
+
 from plm.__version__ import version
 import etm.view as view
 
 check_output = view.check_output
-
 ok, gb = check_output('git branch')
 print('branch:')
 print(gb)
@@ -114,7 +114,7 @@ if new_version:
 
     count = 20
     check_output(
-        f"echo 'Recent tagged changes as of {pendulum.now()}:' > CHANGES.txt"
+        f"echo 'Recent tagged changes as of {datetime.now()}:' > CHANGES.txt"
     )
     check_output(
         f"git log --pretty=format:'- %ar%d %an%n    %h %ai%n%w(70,4,4)%B' --max-count={count} --no-walk --tags >> CHANGES.txt"
