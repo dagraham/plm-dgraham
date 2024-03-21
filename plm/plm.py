@@ -41,17 +41,24 @@ leadingzero = re.compile(r'(?<!(:|\d|-))0+(?=\d)')
 # for wrap_print
 COLUMNS, ROWS = shutil.get_terminal_size()
 COLUMNS -= 4
+logger = None
+plm_projects = {}
+plm_roster = {}
+plm_version = None
+plm_home = ''
 
 cwd = os.getcwd()
 
 
-def zero_fill_sort(dd: [str]) -> [str]:
+def zero_fill_sort(dd: list[str]) -> list[str]:
     l = []
     for d in dd:
         x = d.split('/')
         x[0] = f'{int(x[0]):02}'
         if x[1].endswith('*'):
             x[1] = f"{int(x[1].rstrip('*')):02}*"
+        elif x[1].endswith('^'):
+            x[1] = f"{int(x[1].rstrip('^')):02}^"
         else:
             x[1] = f'{int(x[1]):02}'
         l.append(x)
@@ -154,7 +161,7 @@ def get_project(default_project=''):
         x
         for x in os.listdir(os.path.expanduser(plm_projects))
         if os.path.splitext(x)[1] == '.yaml'
-    ]
+    ];
     possible.sort()
     completer = FuzzyWordCompleter(possible)
     proj = prompt('project: ', completer=completer, default=project).strip()
@@ -746,11 +753,18 @@ REQUEST: |
     as the list above. E.g., using {eg_yes}, not {eg_no}.
 
     If you want to be listed as a possible substitute for any of these
-    dates, then append asterisks to the relevant dates. If, for example,
+    dates, then append an "*" to the relevant dates. If, for example,
     you {CAN.lower()} play on {DATES[0]} and {DATES[3]} {AND} want to be listed as a possible
     substitute on {DATES[2]}, then your response should be
 
         {DATES[0]}, {DATES[2]}*, {DATES[3]}
+        
+    Alternatively, if you want to be listed as a player of last resort 
+    for any of these dates, then append an "^" to the relevant dates. As
+    a player of last resort, you would only be selected if only one player
+    is needed to schedule a court on the given date and, by playing, you 
+    make it possible for the court to be scheduled. A player of last resort
+    will not be selected as captain. 
 
     Short responses:
 
@@ -759,10 +773,15 @@ REQUEST: |
 
         all:  you {CAN} play on {ALL} of the dates - equivalent to a
               list with all of the dates
-
+        
         sub:  you want to be listed as a possible substitute on all of the
-            dates - equivalent to a list of all of the dates with
-            asterisks appended to each date
+            dates - equivalent to a list of all of the dates with an '*'
+            appended to each date
+
+        last: you want to be listed as a 'last resort' on all of the dates -
+            equivalent to a list of all of the dates and an '^' appended to
+            each date
+
 
     Thanks,
 
@@ -787,6 +806,13 @@ NAG: |
     substitute on {DATES[2]}, then your response should be
 
         {DATES[0]}, {DATES[2]}*, {DATES[3]}
+    
+    Alternatively, if you want to be listed as a player of last resort 
+    for any of these dates, then append an "^" to the relevant dates. As
+    a player of last resort, you would only be selected if only one player
+    is needed to schedule a court on the given date and, by playing, you 
+    make it possible for the court to be scheduled. A player of last resort
+    will not be selected as captain. 
 
     Short responses:
 
@@ -795,6 +821,10 @@ NAG: |
 
         all:  you CAN play on all of the dates - equivalent to a
               list with all of the dates
+
+        last: you want to be listed as a 'last resort' on all of the dates -
+            equivalent to a list of all of the dates and an '^' appended to
+            each date
 
         sub:  you want to be listed as a possible substitute on all of the
               dates - equivalent to a list of all of the dates with
@@ -926,6 +956,7 @@ def create_schedule(default_project=''):
     responsedates = {}
     availablebydates = {}
     substitutebydates = {}
+    lastresortbydates = {}
     unselected = {}
     opportunities = {}
     captain = {}
@@ -935,7 +966,9 @@ def create_schedule(default_project=''):
     notcaptain = {}
     playerdates = {}
     substitute = {}
+    lastresort = {}
     substitutedates = {}
+    lastresortdates = {}
     schedule = OrderedDict({})
     onlysubstitute = []
     notresponded = []
@@ -981,6 +1014,7 @@ def create_schedule(default_project=''):
         captain[name] = 0
         notcaptain[name] = 0
         substitute[name] = 0
+        lastresort[name] = 0
         unselected[name] = 0
         opportunities[name] = 0
         response[name] = 0
@@ -999,14 +1033,21 @@ def create_schedule(default_project=''):
         notcaptain[name] = 0
         responsedates[name] = []
         substitutedates[name] = []
+        lastresortdates[name] = []
         response[name] = 0
         playerdates[name] = []
         if RESPONSES[name] in ['na', 'nr', 'none']:
             responsedates[name] = []
             substitutedates[name] = []
+            lastresortdates[name] = []
         elif RESPONSES[name] in ['all'] or len(RESPONSES[name]) == 0:
             responsedates[name] = [x for x in DATES]
             substitutedates[name] = []
+            lastresortdates[name] = []
+        elif RESPONSES[name] in ['last']:
+            responsedates[name] = []
+            substitutedates[name] = []
+            lastresortdates[name] = [x for x in DATES]
         elif RESPONSES[name] in ['sub']:
             responsedates[name] = []
             substitutedates[name] = [x for x in DATES]
@@ -1014,6 +1055,8 @@ def create_schedule(default_project=''):
             for x in RESPONSES[name]:
                 if x.endswith('*'):
                     substitutedates.setdefault(name, []).append(x[:-1])
+                elif x.endswith('^'):
+                    lastresortdates.setdefault(name, []).append(x[:-1])
                 else:
                     responsedates[name].append(x)
 
@@ -1033,6 +1076,10 @@ def create_schedule(default_project=''):
                 substitutebydates.setdefault(dd, []).append(name)
                 substitute.setdefault(name, 0)
                 substitute[name] += 1
+            elif dd in lastresortdates[name]:
+                lastresortbydates.setdefault(dd, []).append(name)
+                lastresort.setdefault(name, 0)
+                lastresort[name] += 1
             elif can == (dd in responsedates[name]):
                 availablebydates.setdefault(dd, []).append(name)
                 response[name] += 1
@@ -1051,15 +1098,32 @@ def create_schedule(default_project=''):
 
     # choose the players for each date and court
     for dd in DATES:
+        filled_partial = False
+        num_selected = 0
+        num_last = 0
         courts = []
         substitutes = []
         unsched = []
-        selected = availablebydates.get(dd, [])
+        available = availablebydates.get(dd, [])
         possible = availablebydates.get(dd, [])
+        lastresort = lastresortbydates.get(dd, [])
         if NUM_COURTS:
-            num_courts = min(NUM_COURTS, len(selected) // NUM_PLAYERS)
+            num_courts = min(NUM_COURTS, len(available) // NUM_PLAYERS)
+            partial_court = min(NUM_COURTS, len(available)) % NUM_PLAYERS
         else:
-            num_courts = len(selected) // NUM_PLAYERS
+            num_courts = len(available) // NUM_PLAYERS
+            partial_court = len(available) % NUM_PLAYERS
+        
+        num_selected = num_courts * NUM_PLAYERS
+        
+
+        if partial_court + 1 == NUM_PLAYERS and len(lastresort) >= 1:
+            # only one player is needed to fill court and a lastresort player is available
+            filled_partial = True
+            num_selected += partial_court
+            num_last = 1
+            num_courts += 1
+
         courts_scheduled[dd] = num_courts
 
         if num_courts:
@@ -1068,16 +1132,14 @@ def create_schedule(default_project=''):
             dates_notscheduled.append(dd)
 
         num_notselected = (
-            len(selected) - num_courts * NUM_PLAYERS
-            if num_courts
-            else len(selected)
+            len(available) - num_selected
         )
 
         if num_notselected:
             # at least one court =>
             # randomly choose the excess players and remove them from selected
             grps = {}
-            for name in selected:
+            for name in available:
                 # players who can play on this date
                 try:
                     grps.setdefault(
@@ -1097,19 +1159,22 @@ def create_schedule(default_project=''):
                     else:
                         unsched.extend(random.sample(grps[num], needed))
             for name in unsched:
-                selected.remove(name)
+                available.remove(name)
+        elif filled_partial:
+            selected = available
+            available.append(random.choice(lastresort))
         else:
             unsched = []
 
-        for name in selected:
+        for name in available:
             playerdates.setdefault(name, []).append(dd)
 
         if NUM_COURTS:
-            num_courts = min(NUM_COURTS, len(selected) // NUM_PLAYERS)
+            num_courts = min(NUM_COURTS, len(available) // NUM_PLAYERS)
         else:
-            num_courts = len(selected) // NUM_PLAYERS
+            num_courts = len(available) // NUM_PLAYERS
 
-        if len(selected) >= NUM_PLAYERS:
+        if len(available) >= NUM_PLAYERS:
             for name in unsched:
                 unselected[name] += 1
                 opportunities[name] += 1
@@ -1118,7 +1183,7 @@ def create_schedule(default_project=''):
 
         # pick captains for each court
         grps = {}
-        for name in selected:
+        for name in available:
             try:
                 grps.setdefault(captain[name] - notcaptain[name], []).append(
                     name
@@ -1129,7 +1194,7 @@ def create_schedule(default_project=''):
         nums = [x for x in grps]
         nums.sort()
         captains = []
-        players = selected
+        players = available
         random.shuffle(players)
         lst = []
         for i in range(num_courts):
@@ -1230,6 +1295,8 @@ def create_schedule(default_project=''):
 
         subs = [f'{x}' for x in substitutebydates.get(dd, [])]
         substr = ', '.join(subs) if subs else 'none'
+        last = [f'{x}' for x in lastresortbydates.get(dd, [])]
+        laststr = ', '.join(last) if last else 'none'
         availstr = ', '.join(avail) if avail else 'none'
 
         courts = schedule[dd]
@@ -1247,6 +1314,7 @@ def create_schedule(default_project=''):
             output.append(f'    Scheduled: none')
         output.append(wrap_format('    Unscheduled: {0}'.format(availstr)))
         output.append(wrap_format('    Substitutes: {0}'.format(substr)))
+        output.append(wrap_format('    Last Resort: {0}'.format(laststr)))
         output.append('')
 
     output.append('')
@@ -1690,6 +1758,8 @@ player tag: {PLAYER_TAG}
                     RESPONSES[player] = 'none'
                 elif response == 'all':
                     RESPONSES[player] = 'all'
+                elif response == 'last':
+                    RESPONSES[player] = 'last'
                 elif response == 'sub':
                     RESPONSES[player] = 'sub'
                 else:   # comma separated list of dates
@@ -1701,6 +1771,8 @@ player tag: {PLAYER_TAG}
                 dates = []
                 for x in tmp:
                     if x.endswith('*') and x[:-1] in DATES:
+                        dates.append(x)
+                    elif x.endswith('^') and x[:-1] in DATES:
                         dates.append(x)
                     elif x in DATES:
                         dates.append(x)
