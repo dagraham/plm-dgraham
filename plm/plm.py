@@ -57,8 +57,8 @@ def zero_fill_sort(dd: list[str]) -> list[str]:
         x[0] = f'{int(x[0]):02}'
         if x[1].endswith('*'):
             x[1] = f"{int(x[1].rstrip('*')):02}*"
-        elif x[1].endswith('^'):
-            x[1] = f"{int(x[1].rstrip('^')):02}^"
+        elif x[1].endswith('!'):
+            x[1] = f"{int(x[1].rstrip('!')):02}!"
         else:
             x[1] = f'{int(x[1]):02}'
         l.append(x)
@@ -760,7 +760,7 @@ REQUEST: |
         {DATES[0]}, {DATES[2]}*, {DATES[3]}
         
     Alternatively, if you want to be listed as a player of last resort 
-    for any of these dates, then append an "^" to the relevant dates. As
+    for any of these dates, then append an "!" to the relevant dates. As
     a player of last resort, you would only be selected if only one player
     is needed to schedule a court on the given date and, by playing, you 
     make it possible for the court to be scheduled. A player of last resort
@@ -779,7 +779,7 @@ REQUEST: |
             appended to each date
 
         last: you want to be listed as a 'last resort' on all of the dates -
-            equivalent to a list of all of the dates and an '^' appended to
+            equivalent to a list of all of the dates and an '!' appended to
             each date
 
 
@@ -808,7 +808,7 @@ NAG: |
         {DATES[0]}, {DATES[2]}*, {DATES[3]}
     
     Alternatively, if you want to be listed as a player of last resort 
-    for any of these dates, then append an "^" to the relevant dates. As
+    for any of these dates, then append an "!" to the relevant dates. As
     a player of last resort, you would only be selected if only one player
     is needed to schedule a court on the given date and, by playing, you 
     make it possible for the court to be scheduled. A player of last resort
@@ -823,7 +823,7 @@ NAG: |
               list with all of the dates
 
         last: you want to be listed as a 'last resort' on all of the dates -
-            equivalent to a list of all of the dates and an '^' appended to
+            equivalent to a list of all of the dates and an '!' appended to
             each date
 
         sub:  you want to be listed as a possible substitute on all of the
@@ -1055,7 +1055,7 @@ def create_schedule(default_project=''):
             for x in RESPONSES[name]:
                 if x.endswith('*'):
                     substitutedates.setdefault(name, []).append(x[:-1])
-                elif x.endswith('^'):
+                elif x.endswith('!'):
                     lastresortdates.setdefault(name, []).append(x[:-1])
                 else:
                     responsedates[name].append(x)
@@ -1098,9 +1098,8 @@ def create_schedule(default_project=''):
 
     # choose the players for each date and court
     for dd in DATES:
-        filled_partial = False
         num_selected = 0
-        num_last = 0
+        lastresort_used = []
         courts = []
         substitutes = []
         unsched = []
@@ -1109,19 +1108,24 @@ def create_schedule(default_project=''):
         lastresort = lastresortbydates.get(dd, [])
         if NUM_COURTS:
             num_courts = min(NUM_COURTS, len(available) // NUM_PLAYERS)
-            partial_court = min(NUM_COURTS, len(available)) % NUM_PLAYERS
+            # only if another court can be added without violating the NUM_COURTS constraint
+            partial_court = len(available) % NUM_PLAYERS if num_courts < NUM_COURTS else 0
         else:
             num_courts = len(available) // NUM_PLAYERS
             partial_court = len(available) % NUM_PLAYERS
         
         num_selected = num_courts * NUM_PLAYERS
-        
 
-        if partial_court + 1 == NUM_PLAYERS and len(lastresort) >= 1:
-            # only one player is needed to fill court and a lastresort player is available
-            filled_partial = True
+        needed = NUM_PLAYERS - partial_court if partial_court else 0
+        if (
+            needed
+            and len(lastresort) >= needed
+            and num_courts + 1 >= needed
+            ):
+            # we need players to fill a partial court and we have enough lastresort players and enough courts to use 
+            # at most one last resort player per court
+            lastresort_used = random.sample(lastresort, needed)
             num_selected += partial_court
-            num_last = 1
             num_courts += 1
 
         courts_scheduled[dd] = num_courts
@@ -1134,6 +1138,8 @@ def create_schedule(default_project=''):
         num_notselected = (
             len(available) - num_selected
         )
+
+        selected = available
 
         if num_notselected:
             # at least one court =>
@@ -1160,19 +1166,11 @@ def create_schedule(default_project=''):
                         unsched.extend(random.sample(grps[num], needed))
             for name in unsched:
                 available.remove(name)
-        elif filled_partial:
-            selected = available
-            available.append(random.choice(lastresort))
         else:
             unsched = []
 
         for name in available:
             playerdates.setdefault(name, []).append(dd)
-
-        if NUM_COURTS:
-            num_courts = min(NUM_COURTS, len(available) // NUM_PLAYERS)
-        else:
-            num_courts = len(available) // NUM_PLAYERS
 
         if len(available) >= NUM_PLAYERS:
             for name in unsched:
@@ -1181,9 +1179,8 @@ def create_schedule(default_project=''):
             for name in possible:
                 opportunities[name] += 1
 
-        # pick captains for each court
         grps = {}
-        for name in available:
+        for name in selected: # available - lastresort
             try:
                 grps.setdefault(captain[name] - notcaptain[name], []).append(
                     name
@@ -1199,7 +1196,8 @@ def create_schedule(default_project=''):
         lst = []
         for i in range(num_courts):
             court = []
-            freq, court, players = select(freq, court, players, NUM_PLAYERS)
+            num_to_select = NUM_PLAYERS - 1 if lastresort_used else NUM_PLAYERS 
+            freq, court, players = select(freq, court, players, num_to_select)
             random.shuffle(court)
             tmp = [
                 (
@@ -1207,11 +1205,13 @@ def create_schedule(default_project=''):
                     / (captain[court[j]] + notcaptain[court[j]] + 1),
                     j,
                 )
-                for j in range(NUM_PLAYERS)
+                for j in range(num_to_select)
             ]
             # put the least often captain first
             tmp.sort()
             court = [court[j] for (i, j) in tmp]
+            if lastresort_used:
+                court.append(lastresort_used.pop(0))
             courts.append('{0}: {1}'.format(i + 1, ', '.join(court)))
             for j in range(len(court)):
                 if j == 0:
@@ -1772,7 +1772,7 @@ player tag: {PLAYER_TAG}
                 for x in tmp:
                     if x.endswith('*') and x[:-1] in DATES:
                         dates.append(x)
-                    elif x.endswith('^') and x[:-1] in DATES:
+                    elif x.endswith('!') and x[:-1] in DATES:
                         dates.append(x)
                     elif x in DATES:
                         dates.append(x)
