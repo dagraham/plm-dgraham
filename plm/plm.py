@@ -1266,7 +1266,7 @@ def create_schedule(default_project=''):
     output.append(format_head(section))
 
     output.append(
-        """\
+        f"""\
 1) The player listed first in each 'Scheduled' group is the
    captain for that group.
 2) 'Unscheduled' players for a date were available to play but were
@@ -1277,6 +1277,8 @@ def create_schedule(default_project=''):
    the 'BY PLAYER' section below for those in the group.
 3) 'Substitutes' for a date asked not to be scheduled but instead
    to be listed as possible substitutes.
+4) 'Last Resort' players for a date agreed to play if doing so made
+   it possible to schedule a court for {NUM_PLAYERS - 1} other available players.
 """
     )
     date_year = cur_year
