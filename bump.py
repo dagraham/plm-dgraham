@@ -2,22 +2,42 @@
 
 from datetime import datetime
 import sys
-
+import subprocess   # for check_output
 from plm.__version__ import version
-import etm.view as view
 
-check_output = view.check_output
-ok, gb = check_output('git branch')
-print('branch:')
-print(gb)
-ok, gs = check_output('git status -s')
-if gs:
-    print('status:')
-    print(gs)
-    print('There are uncommitted changes.')
-    ans = input('Continue anyway? [yN] ')
-    if not (ans and ans.lower() == 'y'):
-        sys.exit()
+def check_output(cmd):
+    if not cmd:
+        return
+    res = ''
+    try:
+        res = subprocess.check_output(
+            cmd,
+            stderr=subprocess.STDOUT,
+            shell=True,
+            universal_newlines=True,
+            encoding='UTF-8',
+        )
+        return True, res
+    except subprocess.CalledProcessError as e:
+        logger.warning(f"Error running {cmd}\n'{e.output}'")
+        lines = e.output.strip().split('\n')
+        msg = lines[-1]
+        return False, msg
+ 
+# import etm.view as view
+
+# check_output = view.check_output
+# ok, gb = check_output('git branch')
+# print('branch:')
+# print(gb)
+# ok, gs = check_output('git status -s')
+# if gs:
+#     print('status:')
+#     print(gs)
+#     print('There are uncommitted changes.')
+#     ans = input('Continue anyway? [yN] ')
+#     if not (ans and ans.lower() == 'y'):
+#         sys.exit()
 
 # PEP 440 extensions
 # possible_extensions = ['a', 'b', 'rc', '.post', '.dev']
