@@ -149,7 +149,7 @@ def openWithDefault(path):
         logger.debug(f"ok True; res: '{res}'")
     else:
         logger.debug(f"ok False; res: '{res}'")
-        show_message('goto', f"failed to open '{path}'")
+        print(f"failed to open '{path}'")
     # return
 
 
