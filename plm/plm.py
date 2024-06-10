@@ -13,7 +13,50 @@ from collections import OrderedDict
 import pyperclip
 from pprint import pprint
 import calendar
-from termcolor import colored
+
+from prompt_toolkit import print_formatted_text as print_formatted
+from prompt_toolkit.output.defaults import create_output
+from prompt_toolkit.output.color_depth import ColorDepth
+
+from prompt_toolkit.formatted_text import FormattedText
+from prompt_toolkit.styles.named_colors import NAMED_COLORS
+
+# Determine the best color depth supported by the terminal
+output = create_output()
+best_color_depth = output.get_default_color_depth()
+
+def colored(text: str, color: str)->None:
+    """
+    Prints `text` in the specified `color`.
+
+    Args:
+        text (str): The text to be printed.
+        color (str): The name of the color to be used.
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If `color` is not a valid named color.
+    """
+    if color not in NAMED_COLORS:
+        raise ValueError(f"Invalid color: {color}")
+
+    try:
+        tokens = FormattedText(
+                [
+                    # ('fg:' + color, text)
+                    (f'fg:{color}', text)
+                ]
+            )
+        print_formatted(
+            tokens, 
+            # color_depth=ColorDepth.TRUE_COLOR
+            color_depth=best_color_depth
+        )
+    except Exception as e:
+        print(e)
+        print(f"{tokens = }")
 
 # import ruamel.yaml
 from ruamel.yaml import YAML
@@ -40,15 +83,14 @@ leadingzero = re.compile(r'(?<!(:|\d|-))0+(?=\d)')
 
 # for wrap_print
 COLUMNS, ROWS = shutil.get_terminal_size()
+divider = COLUMNS*'_'
 COLUMNS -= 4
-logger = None
 plm_projects = {}
 plm_roster = {}
 plm_version = None
 plm_home = ''
 
 cwd = os.getcwd()
-
 
 def zero_fill_sort(dd: list[str]) -> list[str]:
     l = []
@@ -115,7 +157,6 @@ def copy_to_clipboard(text):
 def openWithDefault(path):
     parts = [x.strip() for x in path.split(' ')]
     if len(parts) > 1:
-        # logger.debug(f"path: {path}")
         res = subprocess.Popen(
             [parts[0], ' '.join(parts[1:])],
             stdout=subprocess.DEVNULL,
@@ -124,7 +165,6 @@ def openWithDefault(path):
         ok = True if res else False
     else:
         path = os.path.normpath(os.path.expanduser(path))
-        # logger.debug(f"path: {path}")
         sys_platform = platform.system()
         if platform.system() == 'Darwin':       # macOS
             res = subprocess.run(
@@ -144,11 +184,7 @@ def openWithDefault(path):
         # res = subprocess.run([cmd, path], check=True)
         ret_code = res.returncode
         ok = ret_code == 0
-        # logger.debug(f"res: {res}; ret_code: {ret_code}")
-    if ok:
-        logger.debug(f"ok True; res: '{res}'")
-    else:
-        logger.debug(f"ok False; res: '{res}'")
+    if not ok:
         print(f"failed to open '{path}'")
     # return
 
@@ -402,7 +438,6 @@ def check_update():
         t = r.text.strip()
         # t will be something like "version = '4.7.2'"
         url_version = t.split(' ')[-1][1:-1]
-        logger.debug(f'url_version: {url_version}')
         # split(' ')[-1] will give "'4.7.2'" and url_version will then be '4.7.2'
     except:
         url_version = None
@@ -431,11 +466,11 @@ def view_project(default_project=''):
     border_length = min(18, (COLUMNS - len(project_name)) // 2)
     markers = '∨' * border_length
     clear_screen(default_project)
-    print(colored(f'{markers} begin {project_name} {markers}', 'green'))
+    colored(f'{markers} begin {project_name} {markers}', 'LightSkyBlue')
     # print(f'{markers}= begin {project_name} {markers}')
-    print(''.join(lines).rstrip())
+    colored(''.join(lines).rstrip(), 'LightSkyBlue')
     markers = '∧' * border_length
-    print(colored(f'{markers} end {project_name} {markers}\n', 'green'))
+    colored(f'{markers} end {project_name} {markers}\n', 'LightSkyBlue')
 
     return default_project
 
@@ -699,8 +734,8 @@ Play will also be limited to {weekdays[day]}s falling on or before the "ending d
 
     dates = ', '.join([f'{x.month}/{x.day}' for x in days])
     num_dates = len(days)
-    if num_dates == 0:
-        print(f'ERROR. No dates were scheduled')
+    if num_dates < 4:
+        print(f'ERROR. At least 4 dates must be scheduled')
     elif num_dates >= 30:
         print(
             f'WARNING. An unusually large number of dates, {num_dates}, were scheduled. \nIs this what was intended?'
@@ -1708,21 +1743,23 @@ player tag: {PLAYER_TAG}
             changes = ''
             # show responses recorded thus far
             count = 0
-            print(colored(f'Responses are for {CAN} PLAY dates', 'yellow'))
+            colored(f'Responses are for {CAN} PLAY dates', 'DarkOrange')
             for key, value in RESPONSES.items():
                 if value == 'nr':
                     count += 1
-                    print(colored(f'{key}: {value}', 'yellow'))
+                    colored(f'{key}: {value}', 'Gold')
                 else:
-                    print(colored(f'{key}: {value}', 'green'))
+                    colored(f'{key}: {value}', 'LightSkyBlue')
                     # print(f'{key}: {value}')
             if count:
-                print(colored(f'not yet responded: {count}', 'red'))
+                colored(f'not yet responded: {count}', 'DarkOrange')
             continue
 
-        print(
-            "Enter player's name, '?' to review current responses\nor '.' to stop recording responses."
-        )
+        print(f"""{divider}
+- to record a response             enter the player's name (TAB accepts completion) 
+- to review current responses      enter ?
+- to stop recording responses      enter .\
+""")
         player = prompt('player: ', completer=players).strip()
         if player == '.':
             again = False
@@ -1730,17 +1767,16 @@ player tag: {PLAYER_TAG}
         if player == '?':
             # show responses recorded thus far
             clear_screen(default_project)
-            print(colored(f'Responses are for {CAN} PLAY dates', 'yellow'))
+            colored(f'Responses are for {CAN} PLAY dates', 'DarkOrange')
             count = 0
             for key, value in RESPONSES.items():
                 if value == 'nr':
                     count += 1
-                    print(colored(f'{key}: {value}', 'yellow'))
+                    colored(f'{key}: {value}', 'Gold')
                 else:
-                    print(colored(f'{key}: {value}', 'green'))
-                    # print(f'{key}: {value}')
+                    colored(f'{key}: {value}', 'LightSkyBlue')
             if count:
-                print(colored(f'not yet responded: {count}', 'red'))
+                colored(f'not yet responded: {count}', 'DarkOrange')
             continue
 
         if player not in RESPONSES:
