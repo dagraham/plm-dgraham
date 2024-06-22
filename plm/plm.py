@@ -540,7 +540,7 @@ combining the project name with the extension 'yaml'. A short name that will sor
         DATES = yaml_data['DATES']
         NUM_PLAYERS = yaml_data['NUM_PLAYERS']
         TBD = yaml_data.get('ASSIGN_TBD', 'y')
-        LAST = yaml_data.get('LAST', 'n')
+        LAST = yaml_data.get('ALLOW_LAST', 'n')
     else:
         # set defaults when there is no existing project file
         TITLE = ''
@@ -739,12 +739,20 @@ Play will also be limited to {weekdays[day]}s falling on or before the "ending d
        ) + '[yN] ', default = LAST 
     )
 
-    lastresort_text = wrap_text('Alternatively, if you want to be listed as a player of last resort for any of these dates, then append an "~" to the relevant dates. As a player of last resort, you would only be selected if only one player is needed to schedule a court on the given date and, by playing, you make it possible for the court to be scheduled. A player of last resort will not be selected as captain.') + '\n' if allow_lastresort == 'y' else ''
+    lastresort_text = """
+    Alternatively, if you want to be listed as a player of last resort 
+    for any of these dates, then append an "~" to the relevant dates. As
+    a player of last resort, you would only be selected if only one 
+    player is needed to schedule a court on the given date and, by 
+    playing, you make it possible for the court to be scheduled. A 
+    player of last resort will not be selected as captain.
+    """ if allow_lastresort == 'y' else ''
+    
 
     lastresort_short = """
         last: you want to be listed as a 'last resort' on all of the dates -
-            equivalent to a list of all of the dates and an '~' appended to
-            each date
+              equivalent to a list of all of the dates and an '~' appended to
+              each date
 """ if allow_lastresort == 'y' else ''
 
     rep_dt = parse(f'{reply} 6pm')
@@ -792,7 +800,6 @@ REQUEST: |
     substitute on {DATES[2]}, then your response should be
 
         {DATES[0]}, {DATES[2]}*, {DATES[3]}
-
     {lastresort_text}
     Short responses:
 
@@ -803,10 +810,9 @@ REQUEST: |
               list with all of the dates
         
         sub:  you want to be listed as a possible substitute on all of the
-            dates - equivalent to a list of all of the dates with an '*'
-            appended to each date
+              dates - equivalent to a list of all of the dates with an '*'
+              appended to each date
         {lastresort_short}
-
     Thanks,
 
 NAG: |
@@ -830,19 +836,19 @@ NAG: |
     substitute on {DATES[2]}, then your response should be
 
         {DATES[0]}, {DATES[2]}*, {DATES[3]}
-    
     {lastresort_text}
     Short responses:
 
         none: there are no dates on which you {CAN} play - equivalent to a
               list without any dates
+
         all:  you CAN play on all of the dates - equivalent to a
               list with all of the dates
+
         sub:  you want to be listed as a possible substitute on all of the
               dates - equivalent to a list of all of the dates with
               asterisks appended to each date
         {lastresort_short}
-
     Thanks,
 
 SCHEDULE: |
