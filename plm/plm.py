@@ -1295,7 +1295,7 @@ def create_schedule(default_project=''):
     output = [format_head(TITLE)]
 
     tbd_instruction = """\
-If 'TBD' is listed for a date, the captain is also reponsible for
+If 'TBD' is listed for a date, the captain is also responsible for
    finding a substitute, if possible, and for informing the other 
    players whether or it will be possible to play.
 """ if ASSIGN_TBD else "" 
