@@ -5,6 +5,7 @@ from dateutil.parser import parse, ParserError
 from datetime import datetime, date
 from prompt_toolkit import prompt
 from prompt_toolkit import PromptSession
+from plm.__main__ import logger
 
 from prompt_toolkit.completion import FuzzyWordCompleter
 from collections import OrderedDict

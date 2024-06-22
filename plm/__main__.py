@@ -97,7 +97,6 @@ def main():
     import os
 
     IS_VENV = os.getenv('VIRTUAL_ENV') is not None
-    import plm.__version__ as version
 
     cwd = os.getcwd()
     dlst = [x for x in os.listdir(cwd) if not x.startswith('.')]
