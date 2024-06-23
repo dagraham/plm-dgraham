@@ -1297,7 +1297,7 @@ def create_schedule(default_project=''):
     tbd_instruction = """\
 If 'TBD' is listed for a date, the captain is also responsible for
    finding a substitute, if possible, and for informing the other 
-   players whether or it will be possible to play.
+   players whether or not it will be possible to play.
 """ if ASSIGN_TBD else "" 
 
     note = f"""\
@@ -1313,8 +1313,8 @@ If 'TBD' is listed for a date, the captain is also responsible for
     section = 'By date'
     output.append(format_head(section))
 
-    lastresport_bydate = """
-4) 'Last Resort' players for a date agreed to play if doing so made
+    lastresort_bydate = f"""\
+4) 'Last Resort' players for a date agreed to play if doing so made 
    it possible to schedule a court for {NUM_PLAYERS - 1} other available players.
 """ if ALLOW_LAST else ""
 
@@ -1330,7 +1330,7 @@ If 'TBD' is listed for a date, the captain is also responsible for
    the 'BY PLAYER' section below for those in the group.
 3) 'Substitutes' for a date asked not to be scheduled but instead
    to be listed as possible substitutes.
-{lastresport_bydate}
+{lastresort_bydate}
 """
     )
     date_year = cur_year
