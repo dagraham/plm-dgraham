@@ -727,17 +727,21 @@ Play will also be limited to {weekdays[day]}s falling on or before the "ending d
         'number of players (2 for singles, 4 for doubles): ', default='4'
     )
 
-    assign_tbd = session.prompt(
-        wrap_text(
-        'Automatically assign "TBD" to a court when the addition of a single player would make it possible to schedule the court.'
-       ) + '[Yn] ', default = TBD 
-    )
+    if numplayers == '4':
+        assign_tbd = session.prompt(
+            wrap_text(
+            'Automatically assign "TBD" to a court when the addition of a single player would make it possible to schedule the court.'
+        ) + '[Yn] ', default = TBD 
+        )
 
-    allow_lastresort = session.prompt(
-        wrap_text(
-        'Allow players to use the response "last" or to append "~" to their response dates to indicate their willingness to be scheduled as a player of last resort.'
-       ) + '[yN] ', default = LAST 
-    )
+        allow_lastresort = session.prompt(
+            wrap_text(
+            'Allow players to use the response "last" or to append "~" to their response dates to indicate their willingness to be scheduled as a player of last resort.'
+        ) + '[yN] ', default = LAST 
+        )
+    else:
+        assign_tbd = 'n'
+        allow_lastresort = 'n'
 
     lastresort_text = """
     Alternatively, if you want to be listed as a player of last resort 
