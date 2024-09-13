@@ -48,7 +48,7 @@ def colored(text: str, color: str)->None:
                 ]
             )
         print_formatted(
-            tokens, 
+            tokens,
             color_depth=best_color_depth
         )
     except Exception as e:
@@ -205,7 +205,7 @@ def get_project(default_project=''):
 
 def get_dates(label, year, month, default):
 
-    help = f"""  
+    help = f"""
 Specify playing dates in calendar order separated by commas on one line using the 'mm/dd' format for each date. The year from your "reply by date", {year}, will be assumed unless the month is less than month from your "reply by date", {month}, in which case the following year will be assumed. E.g. with "reply by" year 2022 and month 10, '11/4' and '1/5' would be interpreted, respectively, as '2022/11/04' and '2023/01/05'.
 
 If the last part of your entry has the format 'mm', i.e., omits the '/dd', then a calendar for that month will be displayed to assist in your entries.
@@ -356,15 +356,15 @@ commands:
             else:
                 project = wrap_text(
                     """\
-The active project has not been chosen. 
+The active project has not been chosen.
          Use command 'c' to create one or 'p' to select one.
 """,
                     0,
                     8,
                 )
             help = f"""\
-Player Lineup Manager ({plm_version}) 
-home directory: {plm_home} 
+Player Lineup Manager ({plm_version})
+home directory: {plm_home}
 project: {project}
 {commands}"""
             print(help)
@@ -731,27 +731,27 @@ Play will also be limited to {weekdays[day]}s falling on or before the "ending d
         assign_tbd = session.prompt(
             wrap_text(
             'Automatically assign "TBD" to a court when the addition of a single player would make it possible to schedule the court.'
-        ) + '[Yn] ', default = TBD 
+        ) + '[Yn] ', default = TBD
         )
 
         allow_lastresort = session.prompt(
             wrap_text(
             'Allow players to use the response "last" or to append "~" to their response dates to indicate their willingness to be scheduled as a player of last resort.'
-        ) + '[yN] ', default = LAST 
+        ) + '[yN] ', default = LAST
         )
     else:
         assign_tbd = 'n'
         allow_lastresort = 'n'
 
     lastresort_text = """
-    Alternatively, if you want to be listed as a player of last resort 
+    Alternatively, if you want to be listed as a player of last resort
     for any of these dates, then append an "~" to the relevant dates. As
-    a player of last resort, you would only be selected if only one 
-    player is needed to schedule a court on the given date and, by 
-    playing, you make it possible for the court to be scheduled. A 
+    a player of last resort, you would only be selected if only one
+    player is needed to schedule a court on the given date and, by
+    playing, you make it possible for the court to be scheduled. A
     player of last resort will not be selected as captain.
     """ if allow_lastresort == 'y' else ''
-    
+
 
     lastresort_short = """
         last: you want to be listed as a 'last resort' on all of the dates -
@@ -812,7 +812,7 @@ REQUEST: |
 
         all:  you {CAN} play on {ALL} of the dates - equivalent to a
               list with all of the dates
-        
+
         sub:  you want to be listed as a possible substitute on all of the
               dates - equivalent to a list of all of the dates with an '*'
               appended to each date
@@ -1116,7 +1116,7 @@ def create_schedule(default_project=''):
         for other in NAMES:
             if other == name:
                 continue
-            freq = bump_freq(freq, name, other, bump=False) 
+            freq = bump_freq(freq, name, other, bump=False)
 
     delta = 10
 
@@ -1137,14 +1137,14 @@ def create_schedule(default_project=''):
         else:
             num_courts = len(available) // NUM_PLAYERS
             partial_court = len(available) % NUM_PLAYERS
-        
+
         num_selected = num_courts * NUM_PLAYERS
 
         needed = NUM_PLAYERS - partial_court if partial_court else 0
         add = ''
         if needed:
             if len(lastresort) >= needed and num_courts + 1 >= needed:
-                # we need players to fill a partial court and we have enough lastresort players and enough courts to use 
+                # we need players to fill a partial court and we have enough lastresort players and enough courts to use
                 # at most one last resort player per court
                 lastresort_used = random.sample(lastresort, needed)
                 num_selected += partial_court
@@ -1153,7 +1153,7 @@ def create_schedule(default_project=''):
                 num_selected += partial_court
                 num_courts += 1
                 add = 'TBD'
-            
+
 
         courts_scheduled[dd] = num_courts
 
@@ -1167,7 +1167,7 @@ def create_schedule(default_project=''):
         )
         if add:
             available.append(add)
-        
+
         selected = available
         logger.debug(f"{dd}: {available = } {needed = } {ASSIGN_TBD = } {partial_court = } {selected = } {num_selected = } {num_notselected = } {num_courts = }")
 
@@ -1207,7 +1207,7 @@ def create_schedule(default_project=''):
         if len(available) >= NUM_PLAYERS:
             for name in unsched:
                 if name == 'TBD':
-                    continue    
+                    continue
                 unselected[name] += 1
                 opportunities[name] += 1
             for name in possible:
@@ -1219,7 +1219,7 @@ def create_schedule(default_project=''):
         for name in selected: # available - lastresort
             try:
                 if name == 'TBD':
-                    continue    
+                    continue
                 grps.setdefault(captain[name] - notcaptain[name], []).append(
                     name
                 )
@@ -1234,7 +1234,7 @@ def create_schedule(default_project=''):
         lst = []
         for i in range(num_courts):
             court = []
-            num_to_select = NUM_PLAYERS - 1 if lastresort_used else NUM_PLAYERS 
+            num_to_select = NUM_PLAYERS - 1 if lastresort_used else NUM_PLAYERS
             freq, court, players = select(freq, court, players, num_to_select)
             logger.debug(f"{court = } {players = } {num_to_select = } {captain = }")
             random.shuffle(court)
@@ -1257,7 +1257,7 @@ def create_schedule(default_project=''):
                 for x in court:
                     bump_freq(freq, x, lastresort_player)
                 court.append(lastresort_player)
-            if has_tbd: 
+            if has_tbd:
                 court.append('TBD')
             courts.append('{0}: {1}'.format(i + 1, ', '.join(court)))
             for j in range(len(court)):
@@ -1300,13 +1300,13 @@ def create_schedule(default_project=''):
 
     tbd_instruction = """\
 If 'TBD' is listed for a date, the captain is also responsible for
-   finding a substitute, if possible, and for informing the other 
+   finding a substitute, if possible, and for informing the other
    players whether or not it will be possible to play.
-""" if ASSIGN_TBD else "" 
+""" if ASSIGN_TBD else ""
 
     note = f"""\
 1) The captain is responsible for reserving a court and providing balls.
-   {tbd_instruction} 
+   {tbd_instruction}
 2) A player who is scheduled to play but, for whatever reason,
    cannot play is responsible for finding a substitute and for
    informing the other player(s) in the group.
@@ -1318,7 +1318,7 @@ If 'TBD' is listed for a date, the captain is also responsible for
     output.append(format_head(section))
 
     lastresort_bydate = f"""\
-4) 'Last Resort' players for a date agreed to play if doing so made 
+4) 'Last Resort' players for a date agreed to play if doing so made
    it possible to schedule a court for {NUM_PLAYERS - 1} other available players.
 """ if ALLOW_LAST else ""
 
@@ -1491,7 +1491,7 @@ def bump_freq(freq, a, b, bump: bool = True):
     freq[b].setdefault(a, 0)
     if bump:
         freq[a][b] += 1
-        freq[b][a] += 1 
+        freq[b][a] += 1
     return freq
 
 def ask_players(default_project=''):
@@ -1744,7 +1744,7 @@ def record_responses(default_project=''):
     CAN = 'CAN' if yaml_data.get('CAN', 'y') == 'y' else 'CANNOT'
     DATES = yaml_data['DATES']
     PLAYER_TAG = yaml_data['PLAYER_TAG']
-    ALLOW_LAST = yaml_data['ALLOW_LAST'] == 'y'
+    ALLOW_LAST = True if yaml_data.get('ALLOW_LAST', 'n') == 'y' else False
 
     players = FuzzyWordCompleter([x for x in RESPONSES] + ['.', '?'])
 
@@ -1788,7 +1788,7 @@ player tag: {PLAYER_TAG}
             continue
 
         print(f"""{divider}
-- to record a response             enter the player's name (TAB accepts completion) 
+- to record a response             enter the player's name (TAB accepts completion)
 - to review current responses      enter ?
 - to stop recording responses      enter .\
 """)
@@ -1829,7 +1829,7 @@ player tag: {PLAYER_TAG}
                 elif response == 'all':
                     RESPONSES[player] = 'all'
                 elif response == 'last' and ALLOW_LAST:
-                    RESPONSES[player] = 'last' 
+                    RESPONSES[player] = 'last'
                 elif response == 'sub':
                     RESPONSES[player] = 'sub'
                 else:   # comma separated list of dates
