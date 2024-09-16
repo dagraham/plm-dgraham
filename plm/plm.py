@@ -1012,7 +1012,7 @@ def create_schedule(default_project=''):
     DATES = yaml_data['DATES']
     NUM_PLAYERS = yaml_data['NUM_PLAYERS']
     ASSIGN_TBD = yaml_data['ASSIGN_TBD'] == 'y'
-    ALLOW_LAST = yaml_data['ALLOW_LAST'] == 'y'
+    ALLOW_LAST = yaml_data.get('ALLOW_LAST', 'n') == 'y'
     can = yaml_data['CAN'] == 'y'
 
     RESPONSES = {format_name(k): v for k, v in responses.items()}
