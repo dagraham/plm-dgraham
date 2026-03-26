@@ -1,0 +1,35 @@
+tuesday_doubles:
+  description: Standard Tuesday doubles schedule
+  TITLE_TEMPLATE: "Tuesday Tennis {period} {year}"
+  PLAYER_TAG: "tue"
+  CAN: "y"
+  REPEAT: "y"
+  DAY: 1
+  NUM_COURTS: 0
+  NUM_PLAYERS: 4
+  ASSIGN_TBD: "y"
+  ALLOW_LAST: "n"
+
+monday_doubles:
+  description: Standard Monday doubles schedule
+  TITLE_TEMPLATE: "Monday Tennis {period} {year}"
+  PLAYER_TAG: "mon"
+  CAN: "y"
+  REPEAT: "y"
+  DAY: 0
+  NUM_COURTS: 1
+  NUM_PLAYERS: 4
+  ASSIGN_TBD: "y"
+  ALLOW_LAST: "n"
+
+friday_doubles:
+  description: Standard Friday doubles schedule
+  TITLE_TEMPLATE: "Friday Tennis {period} {year}"
+  PLAYER_TAG: "fri"
+  CAN: "y"
+  REPEAT: "y"
+  DAY: 4
+  NUM_COURTS: 1
+  NUM_PLAYERS: 4
+  ASSIGN_TBD: "y"
+  ALLOW_LAST: "n"
