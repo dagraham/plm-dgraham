@@ -51,11 +51,34 @@ and then install *plm* itself
 
         ~ % python3 -m pip install -U plm-dgraham
 
-This will install *plm* and any needed supporting python modules. This same can also also be used to update *plm* when a new version becomes available.
+This will install *plm* and any needed supporting python modules. The same command can be used to update *plm* when a new version becomes available.
 
-### For use in an isolated environment {#For-use-in-an-isolated-environment}
+If you need to install a dependency manually, note that Python package names can differ between installation and import. For example, install `prompt-toolkit` but import `prompt_toolkit`.
 
-Installing plm in an isolated or virtual environment (sandbox) is only slightly more complicated. Begin by using *pip* to install *pipx*:
+### For use in a virtual environment
+
+Using a virtual environment is a reliable approach, especially on macOS. For local development or testing, create and activate a virtual environment and then install *plm*:
+
+    $ python3 -m venv .venv
+    $ . .venv/bin/activate
+    $ python3 -m pip install --upgrade pip
+    $ python3 -m pip install -e .
+
+If you only need a single dependency in an already activated virtual environment, e.g., `prompt_toolkit`, use:
+
+    $ python3 -m pip install prompt-toolkit
+
+### For use with uv
+
+If you use `uv`, a typical development workflow is:
+
+    $ uv venv
+    $ uv sync
+    $ uv run plm
+
+### For use in an isolated application environment with pipx
+
+Installing plm in an isolated environment is also possible with *pipx*. Begin by using *pip* to install *pipx*:
 
     $ python3 -m pip install -U pipx
 
@@ -71,13 +94,23 @@ To upgrade *plm* when a new version becomes available, simply replace "install" 
 
 ## Starting *plm*
 
-Either way, you can then start *plm* with
+After installation, you can start *plm* with any of these:
 
-    $ plm <path to home>
+    $ plm
+    $ python3 -m plm
+    $ python3 start_plm.py
+
+*plm* does not take a home-directory path argument. Instead it determines the home directory in this order:
+
+- If the current working directory contains both `projects` and `roster.yaml`, then the current working directory is used.
+- Otherwise if the environment variable `plmHOME` is set and points to a directory, then that directory is used.
+- Otherwise `~/plm` is used and will be created with your permission if it does not already exist.
+
+You will then see something like this
 
 and you will see something like this
 
-        Player Lineup Manager (0.3.4)
+        Player Lineup Manager (0.5.3)
         home directory: ~/plm
         project: The active project has not yet been chosen.
         Use command 'c' to create one or 'p' to select one.
@@ -86,13 +119,15 @@ and you will see something like this
             h:  show this help message
             H:  show on-line documentation
             e:  edit 'roster.yaml' using the default text editor
-            c:  create/update a project                           (1)
+            c:  create/update a project manually                  (1)
+            t:  create a new project from a template              (1)
             p:  select the active project from existing projects  (1)
             a:  ask players for their "can play" dates            (2)
             r:  record the "can play" responses                   (3)
             n:  nag players to submit can play responses          (4)
             s:  schedule play using the "can play" responses      (5)
             d:  deliver the schedule to the players               (6)
+            x:  export a reusable template snippet from a project
             v:  view the current settings of a project
             u:  check for an update to a later plm version
             q:  quit
@@ -102,6 +137,8 @@ and you will see something like this
 This begins a loop in which *plm* waits for you to enter a command at the prompt, processes the command and, unless the command *q* (quit) is given, waits for your next command.
 
 Note: the commands *a*, *r*, *s*, *d* and *v* begin with a request that you select the *active project* if you have not already done so with either *c* or *p*. Tab completion is available and, once a selection is made, this project becomes the *active project* for any further use of the commands in this group while the command loop continues.
+
+When using command *c* to create a new project, *plm* can optionally prefill values from bundled templates and, for repeating template-based projects, derive quarter-specific defaults from either a year/month or a year/quarter entry.
 
 ### The Player Directory: roster.yaml
 
@@ -130,11 +167,48 @@ It is worth devoting some thought to the *tag* scheme you will use before you st
 
 #### 1. Create the project file
 
-Start *plm*, if necessary, and use the *create project* command:
+Start *plm*, if necessary, and use the *create project* command for manual project creation:
 
         command: c
 
-Then follow the on-line prompts to enter the project information. This information will be stored in a new file in the projects directory, `<project_name>.yaml`, where `<project_name>` is the name you provide for the project. A short name that sorts well and is suggestive is recommended, e.g., `2022-4Q-TU`.
+Then follow the on-line prompts to enter the project information. This information will be stored in a new file in the projects directory, `<project_name>.yaml`, where `<project_name>` is the name you provide for the project.
+
+A short project name that sorts well and is suggestive is recommended.
+
+If instead you want to create a new project from a template, use the *template project* command:
+
+        command: t
+
+This template-based path is intended for recurring project types such as `tuesday_doubles`, `monday_doubles` or `friday_doubles`. Completion is available when entering the template name. The selected template prefills common values such as the player tag, whether play repeats weekly, the weekday, the number of players, the number of courts, whether `TBD` can be assigned and whether "last resort" responses are allowed.
+
+For repeating template-based projects, *plm* can also optionally derive quarter defaults from either:
+
+- `yyyy/mm` with a two-digit month, e.g., `2025/04`
+- `yyyy/q` with a one-digit quarter, e.g., `2025/2`
+
+In these cases, *plm* will infer the relevant quarter and use it to suggest:
+
+- a project title based on the template, e.g., `Tuesday Tennis 2nd Quarter 2025`
+- a beginning date, e.g., `2025/4/1`
+- an ending date, e.g., `2025/6/30`
+- a project name, e.g., `2025-2Q-TU`
+
+You can then accept these suggestions or edit them before the new project file is written.
+
+For template-based projects with derived quarter defaults, the *reply by date* can be entered in either of these forms:
+
+- an absolute date using `yyyy/mm/dd` with two-digit month and day, e.g., `2026/06/19`
+- a relative weekday rule such as `3FR`, interpreted in the month preceding the starting month
+
+For example, for the 3rd quarter of 2026, entering `3FR` would correspond to `2026/06/19`, the third Friday in June 2026.
+
+You can also use command *x* to export a reusable template snippet from an existing project. The export command prompts you to select a project and then suggests:
+
+- a template name based on the project name
+- a human-readable description
+- a `TITLE_TEMPLATE` based on the project title
+
+The generated YAML snippet includes only reusable template fields such as `PLAYER_TAG`, `CAN`, `REPEAT`, `DAY`, `NUM_COURTS`, `NUM_PLAYERS`, `ASSIGN_TBD` and `ALLOW_LAST`. Project-specific fields such as reply dates, playing dates, responses and schedules are omitted. The snippet is displayed for review and can optionally be copied to the system clipboard.
 
 The value of `CAN` in the project settings affects both the request for player dates and the interpretation of the dates:
 
