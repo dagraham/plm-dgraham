@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plm-dgraham"
+dynamic = ["version"]
+description = "player lineup manager"
+readme = "README.md"
+requires-python = ">=3.7.3"
+authors = [
+    { name = "Daniel A Graham", email = "dnlgrhm@gmail.com" },
+]
+license = { text = "GPL" }
+keywords = ["scheduling", "tennis", "cli", "lineup"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU General Public License (GPL)",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Office/Business",
+    "Topic :: Office/Business :: News/Diary",
+    "Topic :: Office/Business :: Scheduling",
+]
+dependencies = [
+    "prompt-toolkit>=3.0.24",
+    "ruamel.yaml>=0.15.88",
+    "python-dateutil>=2.7.3",
+    "requests>=2.25.1",
+    "pyperclip>=1.7.0",
+    "termcolor>=2.2.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7",
+]
+
+[project.urls]
+Homepage = "https://github.com/dagraham/plm-dgraham"
+
+[project.scripts]
+plm = "plm.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "plm.__version__.version" }
+
+[tool.setuptools.packages.find]
+exclude = ["tests", "test", "tmp"]
