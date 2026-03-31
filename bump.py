@@ -14,6 +14,8 @@ from plm.__version__ import version
 POSSIBLE_EXTENSIONS = ["a", "b", "rc"]
 MAIN_BRANCH = "master"
 DRY_RUN = "--dry-run" in sys.argv
+SKIP_EXISTING = "--skip-existing" in sys.argv
+NO_CLEAN = "--no-clean" in sys.argv
 
 
 def script_root() -> Path:
@@ -148,6 +150,36 @@ def clean_build_artifacts(verbose: bool = False) -> None:
                     print(f"removed file: {path.relative_to(root)}")
         except Exception as exc:
             print(f"could not remove {path}: {exc}")
+
+
+def build_and_upload(skip_existing: bool = False) -> None:
+    if not NO_CLEAN:
+        clean_build_artifacts()
+
+    ok, out = exec_cmd("uv build", stream=True)
+    if out:
+        print(out)
+    if not ok:
+        sys.exit(1)
+
+    ok, out = exec_cmd("uvx twine check dist/*", stream=True)
+    if out:
+        print(out)
+    if not ok:
+        sys.exit(1)
+
+    flags = ["-r", "pypi", "--verbose"]
+    if skip_existing:
+        flags.append("--skip-existing")
+
+    ok, out = exec_cmd(
+        f"uvx twine upload {' '.join(flags)} dist/*",
+        stream=True,
+    )
+    if out:
+        print(out)
+    if not ok:
+        sys.exit(1)
 
 
 def parse_version_components(current_version: str) -> tuple[str, str, int]:
@@ -300,12 +332,7 @@ def pull_rebase_and_push() -> None:
 
 
 def upload_sdist() -> None:
-    upload_script = script_root() / "upload_sdist.sh"
-    ok, out = run(shlex.quote(str(upload_script)))
-    if out:
-        print(out)
-    if not ok:
-        sys.exit(1)
+    build_and_upload(skip_existing=SKIP_EXISTING)
 
 
 def main() -> None:
@@ -343,7 +370,11 @@ def main() -> None:
 
     pull_rebase_and_push()
 
-    ans = input("upload sdist to PyPi using twine? [yN] ").strip().lower()
+    ans = (
+        input("build and upload distribution to PyPi using uv/twine? [yN] ")
+        .strip()
+        .lower()
+    )
     if ans != "y":
         print("cancelled")
         sys.exit()
