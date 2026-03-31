@@ -5,24 +5,16 @@ import sys
 from typing import Any
 
 from dateutil.parser import parse
-from dateutil.rrule import FR, MO, SA, TH, TU, WE, WEEKLY, rrule
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import FuzzyWordCompleter
 
-from plm.periods import (
-    infer_period_from_year_month,
-    infer_period_from_year_quarter,
-    render_title_template,
-    suggest_quarter_project_name,
-    weekday_tag_suffix,
-)
 from plm.project_io import list_project_files, load_project, yaml
-from plm.relative_dates import format_ymd, parse_template_reply_by
-from plm.templates import (
-    has_template,
-    list_template_names,
-    template_defaults,
-    template_description,
+from plm.quarterly_creation import (
+    QuarterlyProjectDraft,
+    build_quarterly_project_draft,
+    draft_to_project_data,
+    editable_fields_for_review,
+    next_quarter_year_and_quarter,
 )
 from plm.utils import rel_path, wrap_text
 
@@ -44,6 +36,65 @@ def create_project(
     )
 
 
+def modify_project(
+    *,
+    plm_roster: str,
+    plm_projects: str,
+    clear_screen,
+) -> str | None:
+    clear_screen()
+    session = PromptSession()
+    _validate_project_environment(plm_roster, plm_projects)
+
+    roster_data = _load_roster_data(plm_roster)
+    players, addresses = _extract_roster_maps(roster_data)
+
+    project_file = _prompt_for_existing_project_file(
+        session=session,
+        plm_projects=plm_projects,
+    )
+    if not project_file:
+        print("cancelled")
+        return None
+
+    project_data = load_project(project_file)
+    data = _project_data_for_review(project_data)
+
+    selected_tag = data["PLAYER_TAG"]
+    if selected_tag not in players:
+        print(
+            f"warning: player tag '{selected_tag}' was not found in {rel_path(plm_roster)}"
+        )
+        available = ", ".join(sorted(players.keys()))
+        print(f"available player tags: {available}")
+        selected_tag = _prompt_for_existing_player_tag(
+            session=session,
+            players=players,
+            default_tag=selected_tag,
+        )
+        data["PLAYER_TAG"] = selected_tag
+
+    review_result = _review_generated_project(
+        session=session,
+        data=data,
+        players=players,
+    )
+    if review_result is None:
+        print("cancelled")
+        return None
+
+    data = review_result
+    _write_project_file(
+        session=session,
+        project_file=project_file,
+        project_data=data,
+        plm_roster=plm_roster,
+        players=players,
+        addresses=addresses,
+    )
+    return project_file
+
+
 def create_project_manual(
     *,
     plm_roster: str,
@@ -58,112 +109,71 @@ def create_project_manual(
 
     roster_data = _load_roster_data(plm_roster)
     players, addresses = _extract_roster_maps(roster_data)
-    player_tags = list(players.keys())
-    tag_completer = FuzzyWordCompleter(player_tags)
 
-    project_state = _initialize_project_state(
-        session=session,
-        plm_projects=plm_projects,
-        template_selected=False,
+    print(
+        wrap_text(
+            f"""\
+Create a new quarterly doubles project by entering:
+1) the year
+2) the quarter
+3) the integer weekday
+
+The project name, title, player tag, reply-by date, begin/end dates and
+weekly playing dates will be generated automatically. The reply-by date is
+set to 14 days before the first generated playing date.
+
+Projects are stored in:
+    {rel_path(plm_projects)}
+"""
+        )
     )
 
-    if project_state["existing"]:
-        defaults = _load_existing_project_defaults(
-            session=session,
-            project_file=project_state["project_file"],
-        )
-        if defaults is None:
-            return project_state["project_file"]
-    else:
-        defaults = _new_project_defaults()
-        project_state = _ensure_manual_project_name(
-            session=session,
-            plm_projects=plm_projects,
-            project_state=project_state,
-        )
+    default_year, default_quarter = next_quarter_year_and_quarter()
 
-    title = _prompt_for_title(session, defaults["TITLE"])
-    tag = _prompt_for_player_tag(
+    year = _prompt_for_year(session, default_year)
+    quarter = _prompt_for_quarter(session, default_quarter)
+    day = _prompt_for_day(session)
+
+    draft = build_quarterly_project_draft(year, quarter, day)
+    data = draft_to_project_data(draft)
+
+    selected_tag = data["PLAYER_TAG"]
+    if selected_tag not in players:
+        print(
+            f"warning: derived player tag '{selected_tag}' was not found in {rel_path(plm_roster)}"
+        )
+        available = ", ".join(sorted(players.keys()))
+        print(f"available player tags: {available}")
+        selected_tag = _prompt_for_existing_player_tag(
+            session=session,
+            players=players,
+            default_tag=selected_tag,
+        )
+        data["PLAYER_TAG"] = selected_tag
+
+    data["YEAR"] = year
+    data["QUARTER"] = quarter
+
+    review_result = _review_generated_project(
         session=session,
-        plm_roster=plm_roster,
+        data=data,
         players=players,
-        player_tags=player_tags,
-        tag_completer=tag_completer,
-        default_tag=defaults["TAG"],
     )
-    _show_selected_players(players, tag)
-
-    reply, rep_dt = _prompt_for_reply_by_date(
-        get_date=get_date,
-        default_reply_by=defaults["REPLY_BY"],
-    )
-    if reply is None:
+    if review_result is None:
+        print("cancelled")
         return None
 
-    can_play = _prompt_for_can_play(session, defaults["CAN"])
-
-    repeat_result = _prompt_for_repeat_schedule(
-        session=session,
-        get_date=get_date,
-        get_dates=get_dates,
-        repeat_default=defaults["REPEAT"],
-        day_default=defaults["DAY"],
-        begin_default=defaults["BEGIN"],
-        end_default=defaults["END"],
-        dates_default=defaults["DATES"],
-        reply_dt=rep_dt,
-    )
-    if repeat_result.get("cancelled"):
-        return None
-
-    repeat = repeat_result["repeat"]
-    day = repeat_result["day"]
-    days = repeat_result["days"]
-
-    schedule_meta = _build_schedule_metadata(days)
-    _warn_about_unusual_schedule(schedule_meta["num_dates"])
-
-    numcourts, numplayers, assign_tbd, allow_lastresort = (
-        _prompt_for_court_and_player_settings(
-            session=session,
-            default_num_courts=defaults["NUM_COURTS"],
-            default_num_players=defaults["NUM_PLAYERS"],
-            default_assign_tbd=defaults["TBD"],
-            default_allow_last=defaults["LAST"],
-        )
-    )
-
-    yaml_text = _render_project_yaml(
-        title=title,
-        tag=tag,
-        reply=reply,
-        rep_dt=rep_dt,
-        can_play=can_play,
-        repeat=repeat,
-        day=day,
-        days=days,
-        numcourts=numcourts,
-        numplayers=numplayers,
-        assign_tbd=assign_tbd,
-        allow_lastresort=allow_lastresort,
-        schedule_meta=schedule_meta,
-        plm_roster=plm_roster,
-        players=players,
-        addresses=addresses,
-        responses=defaults["RESPONSES"],
-    )
-
+    data = review_result
+    project_file = os.path.join(plm_projects, f"{data['NAME']}.yaml")
     _write_project_file(
         session=session,
-        project_file=project_state["project_file"],
-        yaml_text=yaml_text,
-        tag=tag,
+        project_file=project_file,
+        project_data=data,
+        plm_roster=plm_roster,
         players=players,
         addresses=addresses,
-        responses=defaults["RESPONSES"],
     )
-
-    return project_state["project_file"]
+    return project_file
 
 
 def create_project_from_template(
@@ -174,144 +184,14 @@ def create_project_from_template(
     get_date,
     get_dates,
 ) -> str | None:
-    clear_screen()
-    session = PromptSession()
-    _validate_project_environment(plm_roster, plm_projects)
-
-    roster_data = _load_roster_data(plm_roster)
-    players, addresses = _extract_roster_maps(roster_data)
-    player_tags = list(players.keys())
-    tag_completer = FuzzyWordCompleter(player_tags)
-
-    selected_template = _prompt_for_initial_template_selection(
-        session=session,
-        template_names=list_template_names(),
-    )
-    if not selected_template:
-        print("cancelled")
-        return None
-
-    defaults = _apply_selected_template_defaults(
-        defaults=_new_project_defaults(),
-        template_name=selected_template,
-    )
-
-    if str(defaults["REPEAT"]).lower() == "y" and defaults["DAY"] not in ["", None]:
-        defaults, derived_period = _apply_optional_period_defaults(
-            session=session,
-            defaults=defaults,
-        )
-        project_state = {
-            "input_name": "",
-            "project_name": "",
-            "project_file": "",
-            "existing": False,
-            "derived_period": derived_period,
-        }
-        project_state = _resolve_project_name_after_defaults(
-            session=session,
-            plm_projects=plm_projects,
-            project_state=project_state,
-            defaults=defaults,
-        )
-    else:
-        project_state = {
-            "input_name": "",
-            "project_name": "",
-            "project_file": "",
-            "existing": False,
-            "derived_period": None,
-        }
-        project_state = _prompt_for_template_project_name(
-            session=session,
-            plm_projects=plm_projects,
-            project_state=project_state,
-        )
-
-    title = _prompt_for_title(session, defaults["TITLE"])
-    tag = _prompt_for_player_tag(
-        session=session,
-        plm_roster=plm_roster,
-        players=players,
-        player_tags=player_tags,
-        tag_completer=tag_completer,
-        default_tag=defaults["TAG"],
-    )
-    _show_selected_players(players, tag)
-
-    reply, rep_dt = _prompt_for_template_reply_by_date(
-        session=session,
-        get_date=get_date,
-        default_reply_by=defaults["REPLY_BY"],
-        derived_period=project_state["derived_period"],
-    )
-    if reply is None:
-        return None
-
-    can_play = _prompt_for_can_play(session, defaults["CAN"])
-
-    repeat_result = _prompt_for_repeat_schedule(
-        session=session,
-        get_date=get_date,
-        get_dates=get_dates,
-        repeat_default=defaults["REPEAT"],
-        day_default=defaults["DAY"],
-        begin_default=defaults["BEGIN"],
-        end_default=defaults["END"],
-        dates_default=defaults["DATES"],
-        reply_dt=rep_dt,
-    )
-    if repeat_result.get("cancelled"):
-        return None
-
-    repeat = repeat_result["repeat"]
-    day = repeat_result["day"]
-    days = repeat_result["days"]
-
-    schedule_meta = _build_schedule_metadata(days)
-    _warn_about_unusual_schedule(schedule_meta["num_dates"])
-
-    numcourts, numplayers, assign_tbd, allow_lastresort = (
-        _prompt_for_court_and_player_settings(
-            session=session,
-            default_num_courts=defaults["NUM_COURTS"],
-            default_num_players=defaults["NUM_PLAYERS"],
-            default_assign_tbd=defaults["TBD"],
-            default_allow_last=defaults["LAST"],
+    print(
+        wrap_text(
+            """\
+Template-based project creation has been retired. Use command 'c' for the streamlined quarterly doubles workflow.\
+"""
         )
     )
-
-    yaml_text = _render_project_yaml(
-        title=title,
-        tag=tag,
-        reply=reply,
-        rep_dt=rep_dt,
-        can_play=can_play,
-        repeat=repeat,
-        day=day,
-        days=days,
-        numcourts=numcourts,
-        numplayers=numplayers,
-        assign_tbd=assign_tbd,
-        allow_lastresort=allow_lastresort,
-        schedule_meta=schedule_meta,
-        plm_roster=plm_roster,
-        players=players,
-        addresses=addresses,
-        responses=defaults["RESPONSES"],
-    )
-
-    _write_project_file(
-        session=session,
-        project_file=project_state["project_file"],
-        yaml_text=yaml_text,
-        tag=tag,
-        players=players,
-        addresses=addresses,
-        responses=defaults["RESPONSES"],
-    )
-
-    return project_state["project_file"]
+    return None
 
 
 def _validate_project_environment(plm_roster: str, plm_projects: str) -> None:
@@ -346,663 +226,383 @@ def _extract_roster_maps(
     return players, addresses
 
 
-def _initialize_project_state(
+def _prompt_for_existing_project_file(
     *,
     session: PromptSession,
     plm_projects: str,
-    template_selected: bool = False,
-) -> dict[str, Any]:
-    print(
-        wrap_text(
-            f"""\
-A name is required for the project. It will be used to create a file in the projects directory,
-        {rel_path(plm_projects)}
-combining the project name with the extension 'yaml'. A short name that will sort in a useful way is suggested, e.g., `2022-4Q-TU` for scheduling Tuesdays in the 4th quarter of 2022.\
-"""
-        )
-    )
-
-    if template_selected:
-        print(
-            wrap_text(
-                """\
-You selected a template. If you enter the name of an existing project, that project will be opened for modification and the template selection will be ignored. Otherwise, the new project will use the selected template defaults.\
-"""
-            )
-        )
-
+) -> str | None:
+    print("Select the project to modify.")
     possible = list_project_files(plm_projects)
     completer = FuzzyWordCompleter(possible)
     proj = session.prompt("project: ", completer=completer, default="").strip()
     if not proj:
-        sys.exit("canceled")
-
-    project_name = os.path.join(plm_projects, proj)
-    project_file = os.path.join(
-        plm_projects, os.path.splitext(project_name)[0] + ".yaml"
-    )
-
-    return {
-        "input_name": proj,
-        "project_name": project_name,
-        "project_file": project_file,
-        "existing": os.path.exists(project_file),
-    }
-
-
-def _prompt_for_template_project_name(
-    *,
-    session: PromptSession,
-    plm_projects: str,
-    project_state: dict[str, Any],
-) -> dict[str, Any]:
-    print(
-        wrap_text(
-            f"""\
-A name is needed for the new project file in
-        {rel_path(plm_projects)}
-If you already know the project name, enter it here. Otherwise you can accept the suggested name when one is available.\
-"""
-        )
-    )
-
-    proj = session.prompt("project name: ", default="").strip()
-    if not proj:
-        sys.exit("canceled")
-
-    project_name = os.path.join(plm_projects, proj)
-    project_file = os.path.join(
-        plm_projects, os.path.splitext(project_name)[0] + ".yaml"
-    )
-
-    updated = dict(project_state)
-    updated["input_name"] = proj
-    updated["project_name"] = project_name
-    updated["project_file"] = project_file
-    return updated
-
-
-def _load_existing_project_defaults(
-    *,
-    session: PromptSession,
-    project_file: str,
-) -> dict[str, Any] | None:
-    print(f"\nUsing defaults from the existing:\n        {rel_path(project_file)}\n")
-    ok = session.prompt(f"modify {rel_path(project_file)}: [Yn] ").strip()
-    if ok.lower() == "n":
         return None
-
-    yaml_data = load_project(project_file)
-    return {
-        "TITLE": yaml_data["TITLE"],
-        "TAG": yaml_data["PLAYER_TAG"],
-        "REPLY_BY": yaml_data["REPLY_BY"],
-        "CAN": yaml_data.get("CAN", "y"),
-        "REPEAT": yaml_data["REPEAT"],
-        "DAY": yaml_data["DAY"],
-        "BEGIN": yaml_data["BEGIN"],
-        "END": yaml_data["END"],
-        "RESPONSES": yaml_data["RESPONSES"],
-        "DATES": yaml_data["DATES"],
-        "NUM_COURTS": yaml_data.get("NUM_COURTS", "0"),
-        "NUM_PLAYERS": yaml_data["NUM_PLAYERS"],
-        "TBD": yaml_data.get("ASSIGN_TBD", "y"),
-        "LAST": yaml_data.get("ALLOW_LAST", "n"),
-    }
+    proj = proj if proj.endswith(".yaml") else proj + ".yaml"
+    project_file = os.path.join(plm_projects, proj)
+    if not os.path.isfile(project_file):
+        print(f"project '{project_file}' not found")
+        return None
+    return project_file
 
 
-def _new_project_defaults() -> dict[str, Any]:
-    return {
-        "TITLE": "",
-        "TAG": "",
-        "REPLY_BY": "",
-        "CAN": "y",
-        "REPEAT": "y",
-        "DAY": "",
-        "BEGIN": "",
-        "END": "",
-        "RESPONSES": {},
-        "DATES": [],
-        "NUM_COURTS": "0",
-        "NUM_PLAYERS": "",
-        "TBD": "y",
-        "LAST": "n",
-    }
-
-
-def _prompt_for_initial_template_selection(
-    *,
-    session: PromptSession,
-    template_names: list[str],
-) -> str:
-    if not template_names:
-        return ""
-
-    print(
-        wrap_text(
-            """\
-You can optionally start from a bundled project template to prefill common values such as player tag, repeat settings, weekday, number of players and court rules. Press <return> to skip templates and create the project manually. Completion is available for template names.\
-"""
-        )
+def _project_data_for_review(project_data: dict[str, Any]) -> dict[str, Any]:
+    data = dict(project_data)
+    data.setdefault(
+        "YEAR", _year_from_dates(data.get("DATES", []), data.get("REPLY_BY", ""))
     )
-    template_completer = FuzzyWordCompleter(template_names)
-    template_name = session.prompt(
-        "template: ",
-        completer=template_completer,
-        complete_while_typing=True,
-    ).strip()
-
-    while template_name and template_name not in template_names:
-        print(f"'{template_name}' is not an available template.")
-        for name in template_names:
-            description = template_description(name)
-            if description:
-                print(f"  {name}: {description}")
-            else:
-                print(f"  {name}")
-        template_name = session.prompt(
-            "template: ",
-            completer=template_completer,
-            complete_while_typing=True,
-        ).strip()
-
-    return template_name
-
-
-def _apply_selected_template_defaults(
-    *,
-    defaults: dict[str, Any],
-    template_name: str,
-) -> dict[str, Any]:
-    if not template_name:
-        return defaults
-
-    template_data = template_defaults(template_name) or {}
-    description = template_description(template_name)
-    if description:
-        print(f"Using template '{template_name}': {description}")
-    else:
-        print(f"Using template '{template_name}'")
-
-    merged = dict(defaults)
-    merged["TITLE"] = template_data.get("TITLE_TEMPLATE", merged["TITLE"])
-    merged["TAG"] = template_data.get("PLAYER_TAG", merged["TAG"])
-    merged["CAN"] = str(template_data.get("CAN", merged["CAN"]))
-    merged["REPEAT"] = str(template_data.get("REPEAT", merged["REPEAT"]))
-    merged["DAY"] = template_data.get("DAY", merged["DAY"])
-    merged["NUM_COURTS"] = str(template_data.get("NUM_COURTS", merged["NUM_COURTS"]))
-    merged["NUM_PLAYERS"] = str(template_data.get("NUM_PLAYERS", merged["NUM_PLAYERS"]))
-    merged["TBD"] = str(template_data.get("ASSIGN_TBD", merged["TBD"]))
-    merged["LAST"] = str(template_data.get("ALLOW_LAST", merged["LAST"]))
-    return merged
-
-
-def _apply_optional_period_defaults(
-    *,
-    session: PromptSession,
-    defaults: dict[str, Any],
-) -> tuple[dict[str, Any], Any]:
-    print(
-        wrap_text(
-            """\
-For repeating template-based projects, you can optionally derive quarter defaults from either a year and two-digit month (`yyyy/mm`, e.g. `2026/07`) or a year and quarter (`yyyy/q`, where q is 1, 2, 3 or 4, e.g. `2026/3`). This can suggest the project name, title and beginning/ending dates. Press <return> to skip and enter dates manually.\
-"""
-        )
+    data.setdefault(
+        "QUARTER", _quarter_from_dates(data.get("DATES", []), data.get("NAME", ""))
     )
+    data.setdefault("CAN", "y")
+    data.setdefault("NUM_COURTS", "0")
+    data.setdefault("NUM_PLAYERS", "4")
+    data.setdefault("ASSIGN_TBD", "n")
+    data.setdefault("ALLOW_LAST", "n")
+    return data
 
-    derived_seed = session.prompt(
-        "derive from year/two-digit-month or year/quarter: ",
-        default="",
-    ).strip()
 
-    derived_period = None
-    merged = dict(defaults)
-
-    while derived_seed:
+def _year_from_dates(dates: list[str], reply_by: str) -> int:
+    if dates:
         try:
-            second_part = derived_seed.split("/", 1)[1].strip()
-            if len(second_part) == 1:
-                derived_period = infer_period_from_year_quarter(derived_seed)
-            elif len(second_part) == 2:
-                seed_year, seed_month = [
-                    int(x.strip()) for x in derived_seed.split("/", 1)
-                ]
-                derived_period = infer_period_from_year_month(seed_year, seed_month)
-            else:
-                raise ValueError(
-                    "use 'yyyy/q' for quarter input or 'yyyy/mm' for month input"
-                )
-
-            title_template = str(merged["TITLE"])
-            merged["TITLE"] = render_title_template(
-                title_template,
-                year=derived_period.year,
-                quarter=derived_period.quarter,
-                period=derived_period.period_label,
-                start_month=derived_period.start_month,
-                end_month=derived_period.end_month,
-            )
-            merged["BEGIN"] = derived_period.begin_ymd
-            merged["END"] = derived_period.end_ymd
-            break
-        except Exception as exc:
-            print(f"Could not derive quarter defaults from '{derived_seed}': {exc}")
-            derived_seed = session.prompt(
-                "derive from year/two-digit-month or year/quarter: ",
-                default="",
-            ).strip()
-
-    return merged, derived_period
+            reply_dt = parse(reply_by, yearfirst=True)
+            first_month = int(str(dates[0]).split("/")[0])
+            year = reply_dt.year + 1 if first_month < reply_dt.month else reply_dt.year
+            return year
+        except Exception:
+            pass
+    try:
+        return parse(reply_by, yearfirst=True).year
+    except Exception:
+        return datetime.now().year
 
 
-def _resolve_project_name_after_defaults(
+def _quarter_from_dates(dates: list[str], name: str) -> int:
+    if dates:
+        try:
+            first_month = int(str(dates[0]).split("/")[0])
+            return ((first_month - 1) // 3) + 1
+        except Exception:
+            pass
+    try:
+        middle = str(name).split("-")[1]
+        return int(middle[0])
+    except Exception:
+        return 1
+
+
+def _prompt_for_year(session: PromptSession, default_year: int) -> int:
+    while True:
+        value = session.prompt("year: ", default=str(default_year)).strip()
+        if not value:
+            value = str(default_year)
+        if len(value) == 4 and value.isdigit():
+            return int(value)
+        print("enter a four-digit year, e.g. 2026")
+
+
+def _prompt_for_quarter(session: PromptSession, default_quarter: int) -> int:
+    while True:
+        value = session.prompt("quarter: ", default=str(default_quarter)).strip()
+        if not value:
+            value = str(default_quarter)
+        if value in {"1", "2", "3", "4"}:
+            return int(value)
+        print("enter a quarter using 1, 2, 3 or 4")
+
+
+def _prompt_for_day(session: PromptSession, default_day: int = 1) -> int:
+    while True:
+        value = session.prompt(
+            "weekday integer (0: Mon, 1: Tue, 2: Wed, 3: Thu, 4: Fri, 5: Sat): ",
+            default=str(default_day),
+        ).strip()
+        if not value:
+            value = str(default_day)
+        if value in {"0", "1", "2", "3", "4", "5"}:
+            return int(value)
+        print("enter a weekday integer from 0 to 5")
+
+
+def _prompt_for_existing_player_tag(
     *,
     session: PromptSession,
-    plm_projects: str,
-    project_state: dict[str, Any],
-    defaults: dict[str, Any],
-) -> dict[str, Any]:
-    derived_period = project_state.get("derived_period")
-    if derived_period is None:
-        return project_state
-
-    suffix = weekday_tag_suffix(int(defaults["DAY"]))
-    suggested_name = suggest_quarter_project_name(
-        derived_period.year,
-        derived_period.quarter,
-        suffix,
-    )
-    print(
-        f"Derived defaults: title='{defaults['TITLE']}', begin={defaults['BEGIN']}, end={defaults['END']}, suggested project name='{suggested_name}'"
-    )
-
-    current_name = os.path.splitext(project_state["input_name"])[0]
-    proj = session.prompt(
-        "project name: ",
-        default=suggested_name or current_name,
-    ).strip()
-    if not proj:
-        proj = suggested_name or current_name
-
-    project_name = os.path.join(plm_projects, proj)
-    project_file = os.path.join(
-        plm_projects, os.path.splitext(project_name)[0] + ".yaml"
-    )
-
-    updated = dict(project_state)
-    updated["project_name"] = project_name
-    updated["project_file"] = project_file
-    return updated
-
-
-def _ensure_manual_project_name(
-    *,
-    session: PromptSession,
-    plm_projects: str,
-    project_state: dict[str, Any],
-) -> dict[str, Any]:
-    current_name = os.path.splitext(project_state["input_name"])[0]
-    proj = session.prompt("project name: ", default=current_name).strip()
-    if not proj:
-        sys.exit("canceled")
-
-    project_name = os.path.join(plm_projects, proj)
-    project_file = os.path.join(
-        plm_projects, os.path.splitext(project_name)[0] + ".yaml"
-    )
-
-    updated = dict(project_state)
-    updated["project_name"] = project_name
-    updated["project_file"] = project_file
-    return updated
-
-
-def _prompt_for_title(session: PromptSession, default_title: Any) -> str:
-    print(
-        wrap_text(
-            """
-A user friendly title is needed to use as the subject of emails sent to players initially requesting their availability dates and subsequently containing the schedules, e.g., `Tuesday Tennis 4th Quarter 2022`."""
-        )
-    )
-    title = session.prompt("project title: ", default=str(default_title)).strip()
-    if not title:
-        sys.exit("canceled")
-    return title
-
-
-def _prompt_for_player_tag(
-    *,
-    session: PromptSession,
-    plm_roster: str,
     players: dict[str, list[str]],
-    player_tags: list[str],
-    tag_completer: FuzzyWordCompleter,
-    default_tag: Any,
+    default_tag: str,
 ) -> str:
-    print(
-        wrap_text(
-            f"""
-The players for this project will be those that have the tag you specify from {rel_path(plm_roster)}. These tags are currently available: [{", ".join(player_tags)}].\
-"""
-        )
-    )
-    tag = session.prompt(
-        "player tag: ",
-        completer=tag_completer,
-        complete_while_typing=True,
-        default=str(default_tag),
-    )
-    while tag not in player_tags:
-        print(f"'{tag}' is not in {', '.join(player_tags)}")
-        print(f"Available player tags: {', '.join(player_tags)}")
+    tags = sorted(players.keys())
+    completer = FuzzyWordCompleter(tags)
+    while True:
         tag = session.prompt(
             "player tag: ",
-            completer=tag_completer,
+            completer=completer,
             complete_while_typing=True,
             default=str(default_tag),
-        )
-    return tag
+        ).strip()
+        if tag in players:
+            return tag
+        print(f"'{tag}' is not one of: {', '.join(tags)}")
 
 
-def _show_selected_players(players: dict[str, list[str]], tag: str) -> None:
-    print(f"Selected players with the tag '{tag}':")
-    for player in players[tag]:
-        print(f"   {player}")
-
-
-def _prompt_for_reply_by_date(*, get_date, default_reply_by: Any) -> tuple[str, Any]:
-    print(
-        wrap_text(
-            """
-The letter sent to players asking for their availability dates will request a reply by 6pm on the "reply by date" that you specify next.
-"""
-        )
-    )
-    reply = get_date("reply by date", default=str(default_reply_by))
-    if reply is None:
-        print("cancelled")
-        return None, None
-    rep_dt = parse(f"{reply} 6pm")
-    print(f"reply by: {rep_dt.strftime('%Y/%-m/%-d %-I%p')}")
-    return reply, rep_dt
-
-
-def _prompt_for_template_reply_by_date(
+def _review_generated_project(
     *,
     session: PromptSession,
-    get_date,
-    default_reply_by: Any,
-    derived_period,
-) -> tuple[str, Any]:
-    if derived_period is None:
-        return _prompt_for_reply_by_date(
-            get_date=get_date,
-            default_reply_by=default_reply_by,
-        )
-
-    start_month = derived_period.begin.strftime("%Y/%m")
-    if derived_period.begin.month == 1:
-        anchor_year = derived_period.begin.year - 1
-        anchor_month = 12
-    else:
-        anchor_year = derived_period.begin.year
-        anchor_month = derived_period.begin.month - 1
-    anchor_month_text = f"{anchor_year:04d}/{anchor_month:02d}"
-
-    print(
-        wrap_text(
-            f"""
-The letter sent to players asking for their availability dates will request a reply by 6pm on the "reply by date" that you specify next.
-
-Derived start month: {start_month}
-Relative rule anchor month: {anchor_month_text}
-
-For template-based projects with derived quarter defaults, you can enter either:
-- an absolute date using yyyy/mm/dd with two-digit month and day, e.g. {anchor_month_text}/19
-- a relative weekday rule such as 3FR, interpreted in {anchor_month_text}
-"""
-        )
-    )
-
-    default_value = str(default_reply_by).strip()
+    data: dict[str, Any],
+    players: dict[str, list[str]],
+) -> dict[str, Any] | None:
     while True:
-        reply = session.prompt("reply by date or rule: ", default=default_value).strip()
-        if not reply:
-            print("cancelled")
-            return None, None
+        _print_project_review(data, players)
 
-        try:
-            reply_date = parse_template_reply_by(
-                reply,
-                anchor_year=derived_period.begin.year,
-                anchor_month=derived_period.begin.month,
-            )
-            normalized_reply = format_ymd(reply_date)
-            rep_dt = parse(f"{normalized_reply} 6pm")
-            print(
-                f"reply by: {normalized_reply} ({rep_dt.strftime('%-I%p on %a, %b %-d')})"
-            )
-            return normalized_reply, rep_dt
-        except ValueError as exc:
-            print(f"error: {exc}")
-            default_value = reply
-
-
-def _prompt_for_can_play(session: PromptSession, default_can: Any) -> str:
-    print(
-        wrap_text(
-            """
-The letter sent to players asking for their availability dates will request a list either of dates they CAN play or dates they CANNOT play depending upon whether the answer to "interpret responses as can play dates" is Y or n.\
-"""
-        )
-    )
-    can_play = session.prompt(
-        "interpret responses as CAN play dates: [Yn] ",
-        completer=None,
-        default=str(default_can),
-    )
-    can_play = can_play.lower()
-    if can_play == "n":
-        print("interpreting responses as CANNOT play dates")
-    else:
-        print("interpreting responses as CAN PLAY dates")
-    return can_play
-
-
-def _prompt_for_repeat_schedule(
-    *,
-    session: PromptSession,
-    get_date,
-    get_dates,
-    repeat_default: Any,
-    day_default: Any,
-    begin_default: Any,
-    end_default: Any,
-    dates_default: list[str],
-    reply_dt,
-) -> dict[str, Any]:
-    print(
-        wrap_text(
-            """
-If play repeats weekly on the same weekday, playing dates can given by specifying the weekday and the beginning and ending dates. Otherwise, dates can be specified individually.
-"""
-        )
-    )
-    repeat = (
-        session.prompt("Repeat weekly: [Yn] ", default=str(repeat_default))
-        .lower()
-        .strip()
-    )
-
-    if repeat == "y":
-        day = int(
+        action = (
             session.prompt(
-                "The integer weekday:\n    (0: Mon, 1: Tue, 2: Wed, 3: Thu, 4: Fri, 5: Sat): ",
-                default=str(day_default),
+                "Enter a line number to modify, 's' to save, or 'q' to cancel: ",
+                default="s",
             )
+            .strip()
+            .lower()
         )
-        weekday = {0: MO, 1: TU, 2: WE, 3: TH, 4: FR, 5: SA}
-        weekdays = {
-            0: "Monday",
-            1: "Tuesday",
-            2: "Wednesday",
-            3: "Thursday",
-            4: "Friday",
-            5: "Saturday",
-        }
-        print(
-            wrap_text(
-                f"""
-Play will be scheduled for {weekdays[day]}s falling on or after the "beginning date" you specify next."""
-            )
+
+        if action == "s":
+            return data
+        if action == "q":
+            return None
+        if not action.isdigit():
+            print("enter a line number, 's' or 'q'")
+            continue
+
+        line_number = int(action)
+        if line_number not in _reviewable_field_map():
+            print(f"{line_number} is not an editable line number")
+            continue
+
+        key = _reviewable_field_map()[line_number]
+        updated = _edit_review_field(
+            session=session,
+            key=key,
+            current=data[key],
+            data=data,
+            players=players,
         )
-        beginning = get_date("beginning date", str(begin_default))
-        if beginning is None:
-            print("cancelled")
-            return {"cancelled": True}
-        beg_dt = parse(f"{beginning} 12am")
-        print(f"beginning: {beg_dt}")
-
-        print(
-            wrap_text(
-                f"""
-Play will also be limited to {weekdays[day]}s falling on or before the "ending date" you specify next."""
-            )
-        )
-        ending = get_date("ending date", str(end_default))
-        if ending is None:
-            print("cancelled")
-            return {"cancelled": True}
-        end_dt = parse(f"{ending} 11:59pm")
-        print(f"ending: {end_dt}")
-
-        days = list(rrule(WEEKLY, byweekday=weekday[day], dtstart=beg_dt, until=end_dt))
-        return {
-            "repeat": repeat,
-            "day": day,
-            "days": days,
-        }
-
-    day = None
-    dates, days = get_dates(
-        label="Dates",
-        year=reply_dt.year,
-        month=reply_dt.month,
-        default=", ".join(dates_default),
-    )
-    print(f"using these dates:\n  {', '.join(dates)}")
-    return {
-        "repeat": repeat,
-        "day": day,
-        "days": days,
-    }
+        if updated is not None:
+            data[key] = updated
 
 
-def _build_schedule_metadata(days: list[Any]) -> dict[str, Any]:
-    reply_formatted = None
-    beginning_datetime = days[0]
-    beginning_formatted = beginning_datetime.strftime("%Y/%-m/%-d")
-    ending_datetime = days[-1]
-    ending_formatted = ending_datetime.strftime("%Y/%-m/%-d")
-    byear = beginning_datetime.year
-    eyear = ending_datetime.year
+def _print_project_review(data: dict[str, Any], players: dict[str, list[str]]) -> None:
+    fields = [
+        (1, "YEAR", data["YEAR"]),
+        (2, "QUARTER", data["QUARTER"]),
+        (3, "DAY", data["DAY"]),
+        (4, "NAME", data["NAME"]),
+        (5, "TITLE", data["TITLE"]),
+        (6, "PLAYER_TAG", data["PLAYER_TAG"]),
+        (7, "REPLY_BY", data["REPLY_BY"]),
+        (8, "CAN", data["CAN"]),
+        (9, "NUM_COURTS", data["NUM_COURTS"]),
+        (10, "NUM_PLAYERS", data["NUM_PLAYERS"]),
+        (11, "ASSIGN_TBD", data["ASSIGN_TBD"]),
+        (12, "ALLOW_LAST", data["ALLOW_LAST"]),
+    ]
 
-    if byear == eyear:
-        years = f"{byear}"
+    print("")
+    print("Generated project settings")
+    print("==========================")
+    for line_no, key, value in fields:
+        print(f"{line_no:>2}  {key}: {value}")
+
+    print("")
+    print(f"DATES: {', '.join(data['DATES'])}")
+
+    tag = data["PLAYER_TAG"]
+    if tag in players:
+        print("")
+        print(f"Players with tag '{tag}':")
+        for player in players[tag]:
+            print(f"    {player}")
     else:
-        years = f"{byear} - {eyear}"
+        print("")
+        print(f"Players with tag '{tag}': none found")
 
-    dates = ", ".join([f"{x.month}/{x.day}" for x in days])
-    date_list = [x.strip() for x in dates.split(",")]
 
+def _reviewable_field_map() -> dict[int, str]:
     return {
-        "reply_formatted": reply_formatted,
-        "beginning_datetime": beginning_datetime,
-        "beginning_formatted": beginning_formatted,
-        "ending_datetime": ending_datetime,
-        "ending_formatted": ending_formatted,
-        "years": years,
-        "dates": dates,
-        "date_list": date_list,
-        "num_dates": len(days),
+        1: "YEAR",
+        2: "QUARTER",
+        3: "DAY",
+        4: "NAME",
+        5: "TITLE",
+        6: "PLAYER_TAG",
+        7: "REPLY_BY",
+        8: "CAN",
+        9: "NUM_COURTS",
+        10: "NUM_PLAYERS",
+        11: "ASSIGN_TBD",
+        12: "ALLOW_LAST",
     }
 
 
-def _warn_about_unusual_schedule(num_dates: int) -> None:
-    if num_dates < 4:
-        print("ERROR. At least 4 dates must be scheduled")
-    elif num_dates >= 30:
-        print(
-            f"WARNING. An unusually large number of dates, {num_dates}, were scheduled. \nIs this what was intended?"
-        )
-
-
-def _prompt_for_court_and_player_settings(
+def _edit_review_field(
     *,
     session: PromptSession,
-    default_num_courts: Any,
-    default_num_players: Any,
-    default_assign_tbd: Any,
-    default_allow_last: Any,
-) -> tuple[str, str, str, str]:
-    numcourts = session.prompt(
-        "number of courts (0 for unlimited, else allowed number): ",
-        default=str(default_num_courts),
-    )
-    numplayers = session.prompt(
-        "number of players (2 for singles, 4 for doubles): ",
-        default=str(default_num_players) if default_num_players else "4",
-    )
-
-    if numplayers == "4":
-        assign_tbd = session.prompt(
-            wrap_text(
-                'Automatically assign "TBD" to a court when the addition of a single player would make it possible to schedule the court.'
-            )
-            + "[Yn] ",
-            default=str(default_assign_tbd),
+    key: str,
+    current: Any,
+    data: dict[str, Any],
+    players: dict[str, list[str]],
+) -> Any | None:
+    if key == "YEAR":
+        new_year = _prompt_for_year(session, int(current))
+        _regenerate_derived_fields(data, year=new_year)
+        return new_year
+    if key == "QUARTER":
+        new_quarter = _prompt_for_quarter(session, int(current))
+        _regenerate_derived_fields(data, quarter=new_quarter)
+        return new_quarter
+    if key == "DAY":
+        new_day = _prompt_for_day(session, int(current))
+        _regenerate_derived_fields(data, day=new_day)
+        return new_day
+    if key == "NAME":
+        return _prompt_name(session, str(current))
+    if key == "TITLE":
+        return _prompt_nonempty_text(session, "TITLE", str(current))
+    if key == "PLAYER_TAG":
+        return _prompt_for_existing_player_tag(
+            session=session,
+            players=players,
+            default_tag=str(current),
         )
-        allow_lastresort = session.prompt(
-            wrap_text(
-                'Allow players to use the response "last" or to append "~" to their response dates to indicate their willingness to be scheduled as a player of last resort.'
-            )
-            + "[yN] ",
-            default=str(default_allow_last),
-        )
-    else:
-        assign_tbd = "n"
-        allow_lastresort = "n"
+    if key == "REPLY_BY":
+        return _prompt_reply_by(session, str(current))
+    if key == "CAN":
+        return _prompt_yes_no(session, "CAN", str(current))
+    if key == "NUM_COURTS":
+        return _prompt_nonnegative_int_text(session, "NUM_COURTS", str(current))
+    if key == "NUM_PLAYERS":
+        return _prompt_num_players(session, str(current))
+    if key == "ASSIGN_TBD":
+        return _prompt_yes_no(session, "ASSIGN_TBD", str(current))
+    if key == "ALLOW_LAST":
+        return _prompt_yes_no(session, "ALLOW_LAST", str(current))
+    return None
 
-    return numcourts, numplayers, assign_tbd, allow_lastresort
+
+def _prompt_name(session: PromptSession, default_value: str) -> str:
+    while True:
+        value = session.prompt("NAME: ", default=default_value).strip()
+        if value:
+            return value
+        print("NAME must not be empty")
+
+
+def _prompt_nonempty_text(
+    session: PromptSession, label: str, default_value: str
+) -> str:
+    while True:
+        value = session.prompt(f"{label}: ", default=default_value).strip()
+        if value:
+            return value
+        print(f"{label} must not be empty")
+
+
+def _prompt_reply_by(session: PromptSession, default_value: str) -> str:
+    while True:
+        value = session.prompt("REPLY_BY (yyyy/mm/dd): ", default=default_value).strip()
+        try:
+            dt = parse(value, yearfirst=True)
+            return dt.strftime("%Y/%m/%d")
+        except Exception as exc:
+            print(f"invalid reply-by date '{value}': {exc}")
+
+
+def _prompt_yes_no(session: PromptSession, label: str, default_value: str) -> str:
+    while True:
+        value = (
+            session.prompt(f"{label} [y/n]: ", default=default_value).strip().lower()
+        )
+        if value in {"y", "n"}:
+            return value
+        print(f"{label} must be 'y' or 'n'")
+
+
+def _prompt_nonnegative_int_text(
+    session: PromptSession, label: str, default_value: str
+) -> str:
+    while True:
+        value = session.prompt(f"{label}: ", default=default_value).strip()
+        if value.isdigit():
+            return value
+        print(f"{label} must be a non-negative integer")
+
+
+def _prompt_num_players(session: PromptSession, default_value: str) -> str:
+    while True:
+        value = session.prompt("NUM_PLAYERS (4): ", default=default_value).strip()
+        if value == "4":
+            return value
+        print("NUM_PLAYERS is fixed at 4 for quarterly doubles projects")
+
+
+def _regenerate_derived_fields(
+    data: dict[str, Any],
+    *,
+    year: int | None = None,
+    quarter: int | None = None,
+    day: int | None = None,
+) -> None:
+    regenerated = build_quarterly_project_draft(
+        year if year is not None else int(data["YEAR"]),
+        quarter if quarter is not None else int(data["QUARTER"]),
+        day if day is not None else int(data["DAY"]),
+    )
+    data["YEAR"] = regenerated.year
+    data["QUARTER"] = regenerated.quarter
+    data["DAY"] = regenerated.day
+    data["NAME"] = regenerated.name
+    data["TITLE"] = regenerated.title
+    data["PLAYER_TAG"] = regenerated.player_tag
+    data["REPLY_BY"] = regenerated.reply_by
+    data["DATES"] = regenerated.dates
 
 
 def _render_project_yaml(
     *,
-    title: str,
-    tag: str,
-    reply: str,
-    rep_dt,
-    can_play: str,
-    repeat: str,
-    day,
-    days: list[Any],
-    numcourts: str,
-    numplayers: str,
-    assign_tbd: str,
-    allow_lastresort: str,
-    schedule_meta: dict[str, Any],
+    project_data: dict[str, Any],
     plm_roster: str,
     players: dict[str, list[str]],
     addresses: dict[str, str],
-    responses: dict[str, Any],
 ) -> str:
-    reply_formatted = rep_dt.strftime("%Y/%-m/%-d")
+    title = project_data["TITLE"]
+    tag = project_data["PLAYER_TAG"]
+    reply = project_data["REPLY_BY"]
+    can_play = project_data["CAN"]
+    year = project_data["YEAR"]
+    quarter = project_data["QUARTER"]
+    day = project_data["DAY"]
+    dates_list = project_data["DATES"]
+    dates = ", ".join(dates_list)
+    numcourts = project_data["NUM_COURTS"]
+    numplayers = project_data["NUM_PLAYERS"]
+    assign_tbd = project_data["ASSIGN_TBD"]
+    allow_lastresort = project_data["ALLOW_LAST"]
+
+    rep_dt = parse(f"{reply} 6pm")
     rep_date = rep_dt.strftime("%-I%p on %a, %b %-d")
-    dates = schedule_meta["dates"]
-    date_list = schedule_meta["date_list"]
-    years = schedule_meta["years"]
-    beginning_formatted = schedule_meta["beginning_formatted"]
-    ending_formatted = schedule_meta["ending_formatted"]
+
+    begin = parse(f"{year}/{dates_list[0]} 12am", yearfirst=True).strftime("%Y/%m/%d")
+    end = parse(f"{year}/{dates_list[-1]} 12am", yearfirst=True).strftime("%Y/%m/%d")
+    begin_dt = parse(f"{begin} 12am")
+    end_dt = parse(f"{end} 12am")
+    years = (
+        str(begin_dt.year)
+        if begin_dt.year == end_dt.year
+        else f"{begin_dt.year} - {end_dt.year}"
+    )
+
+    eg_day = parse(f"{begin} 12am")
+    eg_yes = eg_day.strftime("%-m/%-d")
+    eg_no = eg_day.strftime("%b %-d")
+
+    CAN = "CAN" if can_play == "y" else "CANNOT"
+    ALL = "all" if can_play == "y" else "any"
+    AND = "and also" if can_play == "y" else "but"
 
     lastresort_text = (
         """
@@ -1027,23 +627,15 @@ def _render_project_yaml(
         else ""
     )
 
-    eg_day = days[1]
-    eg_yes = eg_day.strftime("%-m/%-d")
-    eg_no = eg_day.strftime("%b %-d")
-
-    CAN = "CAN" if can_play == "y" else "CANNOT"
-    ALL = "all" if can_play == "y" else "any"
-    AND = "and also" if can_play == "y" else "but"
-
     tmpl = f"""# created by plm - Player Lineup Manager
 TITLE: {title}
 PLAYER_TAG: {tag}
-REPLY_BY: {reply_formatted}
+REPLY_BY: {reply}
 CAN: {can_play}
-REPEAT: {repeat}
+YEAR: {year}
+QUARTER: {quarter}
+REPEAT: y
 DAY: {day}
-BEGIN: {beginning_formatted}
-END: {ending_formatted}
 DATES: [{dates}]
 NUM_COURTS: {numcourts}
 NUM_PLAYERS: {numplayers}
@@ -1053,7 +645,7 @@ ALLOW_LAST: {allow_lastresort}
 REQUEST: |
     It's time to set the schedule for these dates in {years}:
 
-        {wrap_text(dates, 0, 8)}
+        {dates}
 
     Please make a note on your calendars to email me the DATES YOU
     {CAN} PLAY from this list no later than {rep_date}.
@@ -1065,10 +657,10 @@ REQUEST: |
 
     If you want to be listed as a possible substitute for any of these
     dates, then append an "*" to the relevant dates. If, for example,
-    you {CAN.lower()} play on {date_list[0]} and {date_list[3]} {AND} want to be listed as a possible
-    substitute on {date_list[2]}, then your response should be
+    you {CAN.lower()} play on {dates_list[0]} and {dates_list[3]} {AND} want to be listed as a possible
+    substitute on {dates_list[2]}, then your response should be
 
-        {date_list[0]}, {date_list[2]}*, {date_list[3]}
+        {dates_list[0]}, {dates_list[2]}*, {dates_list[3]}
     {lastresort_text}
     Short responses:
 
@@ -1088,7 +680,7 @@ NAG: |
     You are receiving this letter because I have not yet received a list of
     the dates you {CAN} play from:
 
-        {wrap_text(dates, 0, 8)}
+        {dates}
 
     Please remember that your list is due no later than {rep_date}.
 
@@ -1101,10 +693,10 @@ NAG: |
 
     If you want to be listed as a possible substitute for any of these
     dates, then append asterisks to the relevant dates. If, for example,
-    you {CAN.lower()} play on {date_list[0]} and {date_list[3]} {AND} want to be listed as a possible
-    substitute on {date_list[2]}, then your response should be
+    you {CAN.lower()} play on {dates_list[0]} and {dates_list[3]} {AND} want to be listed as a possible
+    substitute on {dates_list[2]}, then your response should be
 
-        {date_list[0]}, {date_list[2]}*, {date_list[3]}
+        {dates_list[0]}, {dates_list[2]}*, {dates_list[3]}
     {lastresort_text}
     Short responses:
 
@@ -1134,16 +726,24 @@ def _write_project_file(
     *,
     session: PromptSession,
     project_file: str,
-    yaml_text: str,
-    tag: str,
+    project_data: dict[str, Any],
+    plm_roster: str,
     players: dict[str, list[str]],
     addresses: dict[str, str],
-    responses: dict[str, Any],
 ) -> None:
+    tag = project_data["PLAYER_TAG"]
+    responses = {}
+    yaml_text = _render_project_yaml(
+        project_data=project_data,
+        plm_roster=plm_roster,
+        players=players,
+        addresses=addresses,
+    )
+
     response_rows = []
     email_rows = []
 
-    for player in players[tag]:
+    for player in players.get(tag, []):
         response = responses[player] if player in responses else "nr"
         response_rows.append(f"{player}: {response}\n")
         email_rows.append(f"{player}: {addresses[player]}\n")

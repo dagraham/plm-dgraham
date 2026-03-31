@@ -1,5 +1,10 @@
 # Player Lineup Manager
 
+<img src="mouse_short_square.png" align="left" width="200" style="margin-right: 10px;">
+
+This is a paragraph of text with the image floating on the left. The text will wrap around the image, creating a mixed layout. This can be used for personal profiles or product introductions.
+
+<div style="clear: both;"></div>
 
 ## History
 
@@ -119,15 +124,14 @@ and you will see something like this
             h:  show this help message
             H:  show on-line documentation
             e:  edit 'roster.yaml' using the default text editor
-            c:  create/update a project manually                  (1)
-            t:  create a new project from a template              (1)
+            c:  create a new quarterly doubles project            (1)
+            m:  modify an existing project                        (1)
             p:  select the active project from existing projects  (1)
             a:  ask players for their "can play" dates            (2)
             r:  record the "can play" responses                   (3)
             n:  nag players to submit can play responses          (4)
             s:  schedule play using the "can play" responses      (5)
             d:  deliver the schedule to the players               (6)
-            x:  export a reusable template snippet from a project
             v:  view the current settings of a project
             u:  check for an update to a later plm version
             q:  quit
@@ -167,48 +171,45 @@ It is worth devoting some thought to the *tag* scheme you will use before you st
 
 #### 1. Create the project file
 
-Start *plm*, if necessary, and use the *create project* command for manual project creation:
+Start *plm*, if necessary, and use the *create project* command:
 
         command: c
 
-Then follow the on-line prompts to enter the project information. This information will be stored in a new file in the projects directory, `<project_name>.yaml`, where `<project_name>` is the name you provide for the project.
+This command now provides a streamlined quarterly doubles workflow. You will be prompted for:
 
-A short project name that sorts well and is suggestive is recommended.
+- the year
+- the quarter
+- the integer weekday, where `0: Monday, 1: Tuesday, 2: Wednesday, 3: Thursday, 4: Friday, 5: Saturday`
 
-If instead you want to create a new project from a template, use the *template project* command:
+The defaults for year and quarter are the year and quarter immediately following the current quarter. For example, in December 2026 the defaults would be year `2027` and quarter `1`.
 
-        command: t
+From these entries, *plm* generates the complete project settings, including:
 
-This template-based path is intended for recurring project types such as `tuesday_doubles`, `monday_doubles` or `friday_doubles`. Completion is available when entering the template name. The selected template prefills common values such as the player tag, whether play repeats weekly, the weekday, the number of players, the number of courts, whether `TBD` can be assigned and whether "last resort" responses are allowed.
+- `NAME`, e.g., `2026-3Q-TU`
+- `TITLE`, e.g., `Tuesday Tennis 3rd Quarter 2026`
+- `PLAYER_TAG`, e.g., `tue`
+- `REPLY_BY`, set to 14 days before the first generated playing date, e.g., `2026/06/23`
+- the quarterly weekday `DATES`
 
-For repeating template-based projects, *plm* can also optionally derive quarter defaults from either:
+It also uses these defaults:
 
-- `yyyy/mm` with a two-digit month, e.g., `2025/04`
-- `yyyy/q` with a one-digit quarter, e.g., `2025/2`
+- `CAN: y`
+- `NUM_COURTS: 0`
+- `NUM_PLAYERS: 4`
+- `ASSIGN_TBD: n`
+- `ALLOW_LAST: n`
 
-In these cases, *plm* will infer the relevant quarter and use it to suggest:
+After generating the project, *plm* presents the resulting settings for review. You can then save the project as generated, cancel, or enter a line number to modify selected settings such as `YEAR`, `QUARTER`, `DAY`, `NAME`, `TITLE`, `PLAYER_TAG`, `REPLY_BY`, `CAN`, `NUM_COURTS`, `NUM_PLAYERS`, `ASSIGN_TBD` and `ALLOW_LAST`. The generated `DATES` are also displayed for review, but they are informational and are not modified directly.
 
-- a project title based on the template, e.g., `Tuesday Tennis 2nd Quarter 2025`
-- a beginning date, e.g., `2025/4/1`
-- an ending date, e.g., `2025/6/30`
-- a project name, e.g., `2025-2Q-TU`
+#### 2. Modify an existing project
 
-You can then accept these suggestions or edit them before the new project file is written.
+To modify an existing project, use:
 
-For template-based projects with derived quarter defaults, the *reply by date* can be entered in either of these forms:
+        command: m
 
-- an absolute date using `yyyy/mm/dd` with two-digit month and day, e.g., `2026/06/19`
-- a relative weekday rule such as `3FR`, interpreted in the month preceding the starting month
+You will be prompted to select an existing project and then shown the same numbered review screen used for project creation. You can save the project as-is, cancel, or enter a line number to modify selected settings. If you change `YEAR`, `QUARTER` or `DAY`, the derived fields are regenerated automatically.
 
-For example, for the 3rd quarter of 2026, entering `3FR` would correspond to `2026/06/19`, the third Friday in June 2026.
-
-You can also use command *x* to export a reusable template snippet from an existing project. The export command prompts you to select a project and then suggests:
-
-- a template name based on the project name
-- a human-readable description
-- a `TITLE_TEMPLATE` based on the project title
-
-The generated YAML snippet includes only reusable template fields such as `PLAYER_TAG`, `CAN`, `REPEAT`, `DAY`, `NUM_COURTS`, `NUM_PLAYERS`, `ASSIGN_TBD` and `ALLOW_LAST`. Project-specific fields such as reply dates, playing dates, responses and schedules are omitted. The snippet is displayed for review and can optionally be copied to the system clipboard.
+Command `v` shows the current project settings in the same spirit as the review screen. It displays `YEAR`, `QUARTER`, `DAY`, `NAME`, `TITLE`, `PLAYER_TAG`, `REPLY_BY`, `CAN`, `NUM_COURTS`, `NUM_PLAYERS`, `ASSIGN_TBD` and `ALLOW_LAST`, followed by the generated `DATES`.
 
 The value of `CAN` in the project settings affects both the request for player dates and the interpretation of the dates:
 

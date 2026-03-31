@@ -24,19 +24,13 @@ from plm.email_flow import (
     schedule_email_payload,
 )
 from plm.project_creation import (
-    create_project_from_template,
+    create_project_manual as orchestrate_project_creation,
 )
 from plm.project_creation import (
-    create_project_manual as orchestrate_project_creation,
+    modify_project,
 )
 from plm.project_io import list_project_files, load_project, save_project, yaml
 from plm.responses import normalize_response_value, parse_response_input
-from plm.template_export import (
-    dump_template_snippet,
-    suggest_template_description,
-    suggest_template_name,
-    suggest_title_template,
-)
 from plm.utils import (
     format_head,
     print_head,
@@ -307,21 +301,17 @@ commands:
     h:  show this help message
     H:  show on-line documentation
     e:  edit 'roster.yaml' using the default editor
-    c:  create/update a project manually              (1)
-    t:  create a new project from a template          (1)
+    c:  create a new quarterly doubles project        (1)
+    m:  modify an existing project                    (1)
     p:  select the active project from existing       (1)
     a:  ask players for their "can play" dates        (2)
     r:  record the "can play" responses               (3)
     n:  nag players to submit can play responses      (4)
     s:  schedule play using the "can play" responses  (5)
     d:  deliver the schedule to the players           (6)
-    x:  export a reusable template snippet from a project
     v:  view the current settings of a project
     u:  check for an update to a later plm version
     q:  quit
-
-hidden/test:
-    T:  toggle CAN/CANNOT mode for the active project
 """
 
     try:
@@ -345,7 +335,7 @@ project: {project}
 {commands}"""
             print(help)
             answer = input("command: ").strip()
-            if answer not in "cTlhevpnarsdouxq?Ht":
+            if answer not in "clmhevpnarsdouq?H":
                 print(f"invalid command: '{answer}'")
                 print(commands)
             elif answer in ["h", "?"]:
@@ -358,9 +348,6 @@ project: {project}
             elif answer == "q":
                 again = False
                 print("quitting plm ...")
-            elif answer == "T":
-                default_project = get_project(default_project)
-                toggle_can_play(default_project)
             else:
                 if answer == "e":
                     edit_roster()
@@ -370,13 +357,11 @@ project: {project}
                     default_project = view_project(default_project)
                 elif answer == "c":
                     default_project = create_project(default_project)
-                elif answer == "t":
-                    default_project = create_project_from_template(
+                elif answer == "m":
+                    default_project = modify_project(
                         plm_roster=plm_roster,
                         plm_projects=plm_projects,
                         clear_screen=clear_screen,
-                        get_date=get_date,
-                        get_dates=get_dates,
                     )
                 elif answer == "p":
                     default_project = get_project(default_project)
@@ -390,8 +375,6 @@ project: {project}
                     default_project = create_schedule(default_project)
                 elif answer == "d":
                     default_project = deliver_schedule(default_project)
-                elif answer == "x":
-                    default_project = export_template(default_project)
                 elif answer == "l":
                     default_project = clear_screen(default_project)
 
@@ -432,14 +415,56 @@ def view_project(default_project=""):
             print("Cancelled")
             return
 
-    with open(default_project) as fo:
-        lines = fo.readlines()
+    yaml_data = load_project(default_project)
     project_name = os.path.split(default_project)[1]
     border_length = min(18, (COLUMNS - len(project_name)) // 2)
     markers = "∨" * border_length
     clear_screen(default_project)
+
+    dates = yaml_data.get("DATES", [])
+    fallback_year = ""
+    fallback_quarter = ""
+
+    if dates:
+        try:
+            first_month = int(str(dates[0]).split("/")[0])
+            fallback_quarter = ((first_month - 1) // 3) + 1
+
+            reply_by = yaml_data.get("REPLY_BY", "")
+            if reply_by:
+                reply_dt = parse(str(reply_by), yearfirst=True)
+                fallback_year = (
+                    reply_dt.year + 1 if first_month < reply_dt.month else reply_dt.year
+                )
+            else:
+                fallback_year = datetime.now().year
+        except Exception:
+            fallback_year = ""
+            fallback_quarter = ""
+
+    display_fields = [
+        ("YEAR", yaml_data.get("YEAR", fallback_year)),
+        ("QUARTER", yaml_data.get("QUARTER", fallback_quarter)),
+        ("DAY", yaml_data.get("DAY", "")),
+        ("NAME", yaml_data.get("NAME", os.path.splitext(project_name)[0])),
+        ("TITLE", yaml_data.get("TITLE", "")),
+        ("PLAYER_TAG", yaml_data.get("PLAYER_TAG", "")),
+        ("REPLY_BY", yaml_data.get("REPLY_BY", "")),
+        ("CAN", yaml_data.get("CAN", "")),
+        ("NUM_COURTS", yaml_data.get("NUM_COURTS", "")),
+        ("NUM_PLAYERS", yaml_data.get("NUM_PLAYERS", "")),
+        ("ASSIGN_TBD", yaml_data.get("ASSIGN_TBD", "")),
+        ("ALLOW_LAST", yaml_data.get("ALLOW_LAST", "")),
+    ]
+
     colored(f"{markers} begin {project_name} {markers}", "LightSkyBlue")
-    colored("".join(lines).rstrip(), "LightSkyBlue")
+    for key, value in display_fields:
+        colored(f"{key}: {value}", "LightSkyBlue")
+
+    if dates:
+        colored("", "LightSkyBlue")
+        colored(f"DATES: {', '.join(dates)}", "LightSkyBlue")
+
     markers = "∧" * border_length
     colored(f"{markers} end {project_name} {markers}\n", "LightSkyBlue")
 
@@ -1204,67 +1229,6 @@ should be ready to send.
     )
     if ok:
         return default_project
-
-
-def export_template(default_project=""):
-    print(
-        """
-This will help you export a reusable template snippet from an
-existing project."""
-    )
-
-    print("The first step is to select the project.")
-    project = get_project(default_project)
-    if not project:
-        print("Cancelled")
-        return default_project
-
-    with open(project) as fo:
-        yaml_data = yaml.load(fo)
-
-    project_name = os.path.split(project)[1]
-    suggested_name = suggest_template_name(project_name)
-    suggested_description = suggest_template_description(project_name)
-    suggested_title = suggest_title_template(yaml_data.get("TITLE", ""))
-
-    print(
-        """
-A template snippet will be generated from the selected project
-using only reusable settings. You can accept the suggested values
-or edit them before exporting the snippet.
-"""
-    )
-
-    template_name = prompt("template name: ", default=suggested_name).strip()
-    if not template_name:
-        print("Cancelled")
-        return default_project
-
-    description = prompt(
-        "template description: ", default=suggested_description
-    ).strip()
-    title_template = prompt("title template: ", default=suggested_title).strip()
-
-    snippet = dump_template_snippet(
-        template_name,
-        yaml_data,
-        description=description,
-        title_template=title_template,
-    )
-
-    print(
-        """
-Generated template snippet:
-
-"""
-    )
-    print(snippet)
-
-    ok = prompt("Copy the template snippet to the clipboard? [Yn] ", default="y")
-    if ok.lower() != "n":
-        copy_to_clipboard(snippet)
-
-    return default_project
 
 
 def record_responses(default_project=""):
