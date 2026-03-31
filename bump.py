@@ -13,7 +13,6 @@ from plm.__version__ import version
 
 POSSIBLE_EXTENSIONS = ["a", "b", "rc"]
 MAIN_BRANCH = "master"
-WORKING_BRANCH = "working"
 DRY_RUN = "--dry-run" in sys.argv
 
 
@@ -116,14 +115,12 @@ def ensure_expected_branch() -> None:
         print("Unable to determine current git branch.")
         sys.exit(1)
 
-    if branch not in {MAIN_BRANCH, WORKING_BRANCH}:
-        print(
-            f"Warning: current branch is '{branch}', not '{MAIN_BRANCH}' or '{WORKING_BRANCH}'."
-        )
+    if branch != MAIN_BRANCH:
+        print(f"Warning: current branch is '{branch}', not '{MAIN_BRANCH}'.")
         ans = input("Continue anyway? [yN] ").strip().lower()
         if ans != "y":
             print("cancelled")
-            sys.exit()
+            sys.exit(1)
 
 
 def clean_build_artifacts(verbose: bool = False) -> None:
@@ -282,14 +279,20 @@ def commit_and_tag(new_version: str, tag_message: str) -> None:
         sys.exit(1)
 
 
-def merge_and_push() -> None:
-    cmd = (
-        f"git checkout {MAIN_BRANCH} "
-        f"&& git merge {WORKING_BRANCH} "
-        "&& git push "
-        f"&& git checkout {WORKING_BRANCH}"
-    )
-    ok, out = run(cmd)
+def pull_rebase_and_push() -> None:
+    ok, out = run(f"git pull --rebase origin {MAIN_BRANCH}")
+    if out:
+        print(out)
+    if not ok:
+        sys.exit(1)
+
+    ok, out = run(f"git push origin {MAIN_BRANCH}")
+    if out:
+        print(out)
+    if not ok:
+        sys.exit(1)
+
+    ok, out = run("git push origin --tags")
     if out:
         print(out)
     if not ok:
@@ -329,7 +332,7 @@ def main() -> None:
 
     ans = (
         input(
-            f"switch to {MAIN_BRANCH}, merge {WORKING_BRANCH} and push to origin? [yN] "
+            f"pull --rebase and push '{MAIN_BRANCH}' to origin, then push tags? [yN] "
         )
         .strip()
         .lower()
@@ -338,7 +341,7 @@ def main() -> None:
         print("cancelled")
         sys.exit()
 
-    merge_and_push()
+    pull_rebase_and_push()
 
     ans = input("upload sdist to PyPi using twine? [yN] ").strip().lower()
     if ans != "y":
