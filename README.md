@@ -2,15 +2,22 @@
 
 ## History
 
-Some variant of *plm* has been used privately since 2014 to schedule tennis doubles matches for a group of around 30 tennis players. Play for this group occurs weekly on Tuesdays using as many courts as necessary and the schedules are made for three months (one quarter) at a time. More recently, smaller Monday and Friday groups have been added each using at most one court. The process involves these steps.
+Some variant of *plm* has been used privately since 2014 to schedule tennis doubles matches for a group of around 30 tennis players. Play for this group occurs weekly on Tuesdays using as many courts as necessary and the schedules are made for three months (one quarter) at a time. More recently, smaller Monday and Friday groups have been added each using at most one court. 
 
-- Obtain from each player a list of the dates that the player can play.
-- Randomly sort available players for each date into groups of two (singles) or four (doubles) taking account of previous pairings.
-- From each group, randomly select a 'captain' taking account of previous selections.
-- Produce a "user friendly" version of the schedule organized both by date and by player.
-- Send the completed schedule to each player.
+The process involves using *plm* for these steps.
 
-The current version of this program automates each of the steps in this process and allows some flexibility in scheduling dates, indicating a willingness to be a possible substitute, specifying the number of players per court (doubles or singles), and so forth. A further change is that all information relevant to a project is now stored in a single, project file in *yaml* format with players's responses listing the dates that the player *can* play rather than the dates the player *cannot* play. A final change is that *plm* is now publically available both from *PyPi*, [plm-dgraham](https://pypi.org/project/plm-dgraham/), and from *GitHub*, [dagraham/plm-dgraham](https://github.com/dagraham/plm-dgraham).
+- Press "c" to create a "project" by entering the year, quarter and weekday. E.g., for Tuesdays in the 3rd quarter of 2026, the corresponding values would be 2026, 3, and 1. (Weekday numbers begin with 0 for Monday.)
+- Press "a" to generate an email asking players for their can/cannot play dates for the quarter.
+- Press "r" to record player responses. Dates can be entered by choosing the player and then copy and pasting the dates from that player's email.
+- When all responses have been received, press "s" to generate a schedule that 
+  - randomly sorts available players for each date into groups of two (singles) or four (doubles) taking account of previous pairings. 
+  - randomly selects from each group a 'captain' taking account of previous selections.
+  - prepares a "user friendly" version of the schedule organized both by date and by player to email to the players. In addition to showing the players who are scheduled for each date, the scheduled also lists, with contact information, players who were not scheduled and might be available to substitute.
+- Press "d" to deliver the completed schedule to the players.
+
+Setup for using *plm* requires constructing a "roster" file lising players with their email addresses and tags indicating the weekdays on which they generally wish to play. 
+
+*plm* is available from *PyPi*, [plm-dgraham](https://pypi.org/project/plm-dgraham/), and from *GitHub*, [dagraham/plm-dgraham](https://github.com/dagraham/plm-dgraham).
 
 ## Requirements
 
