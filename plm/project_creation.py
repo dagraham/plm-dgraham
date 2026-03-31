@@ -91,6 +91,7 @@ def modify_project(
         plm_roster=plm_roster,
         players=players,
         addresses=addresses,
+        confirm_overwrite=False,
     )
     return project_file
 
@@ -247,12 +248,27 @@ def _prompt_for_existing_project_file(
 
 def _project_data_for_review(project_data: dict[str, Any]) -> dict[str, Any]:
     data = dict(project_data)
-    data.setdefault(
+
+    year = data.get(
         "YEAR", _year_from_dates(data.get("DATES", []), data.get("REPLY_BY", ""))
     )
-    data.setdefault(
+    quarter = data.get(
         "QUARTER", _quarter_from_dates(data.get("DATES", []), data.get("NAME", ""))
     )
+    day = data.get("DAY", 1)
+
+    data.setdefault("YEAR", year)
+    data.setdefault("QUARTER", quarter)
+    data.setdefault("DAY", day)
+
+    regenerated = build_quarterly_project_draft(int(year), int(quarter), int(day))
+
+    data.setdefault("NAME", regenerated.name)
+    data.setdefault("TITLE", regenerated.title)
+    data.setdefault("PLAYER_TAG", regenerated.player_tag)
+    data.setdefault("REPLY_BY", regenerated.reply_by)
+    data.setdefault("DATES", regenerated.dates)
+
     data.setdefault("CAN", "y")
     data.setdefault("NUM_COURTS", "0")
     data.setdefault("NUM_PLAYERS", "4")
@@ -355,7 +371,7 @@ def _review_generated_project(
         action = (
             session.prompt(
                 "Enter a line number to modify, 's' to save, or 'q' to cancel: ",
-                default="s",
+                default="",
             )
             .strip()
             .lower()
@@ -730,6 +746,7 @@ def _write_project_file(
     plm_roster: str,
     players: dict[str, list[str]],
     addresses: dict[str, str],
+    confirm_overwrite: bool = True,
 ) -> None:
     tag = project_data["PLAYER_TAG"]
     responses = {}
@@ -750,6 +767,7 @@ def _write_project_file(
 
     if (
         not os.path.exists(project_file)
+        or not confirm_overwrite
         or session.prompt(
             f"{rel_path(project_file)} exists. Overwrite: ",
             default="yes",
