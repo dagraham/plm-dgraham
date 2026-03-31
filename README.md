@@ -1,11 +1,5 @@
 # Player Lineup Manager
 
-<img src="mouse_short_square.png" align="left" width="200" style="margin-right: 10px;">
-
-This is a paragraph of text with the image floating on the left. The text will wrap around the image, creating a mixed layout. This can be used for personal profiles or product introductions.
-
-<div style="clear: both;"></div>
-
 ## History
 
 Some variant of *plm* has been used privately since 2014 to schedule tennis doubles matches for a group of around 30 tennis players. Play for this group occurs weekly on Tuesdays using as many courts as necessary and the schedules are made for three months (one quarter) at a time. More recently, smaller Monday and Friday groups have been added each using at most one court. The process involves these steps.
